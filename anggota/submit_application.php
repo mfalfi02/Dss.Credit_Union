@@ -12,6 +12,11 @@ $stmt = $conn->prepare("SELECT * FROM anggota WHERE user_id = ?");
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $member = $stmt->get_result()->fetch_assoc();
+
+$selectedJenis = $_GET['jenis'] ?? '';
+if (!in_array($selectedJenis, ['KTA', 'KUR'], true)) {
+    $selectedJenis = '';
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -21,50 +26,221 @@ $member = $stmt->get_result()->fetch_assoc();
     <title>Ajukan Pengajuan - SPK Kredit</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background:
+                radial-gradient(circle at top left, rgba(14, 165, 233, 0.12), transparent 28%),
+                radial-gradient(circle at top right, rgba(37, 99, 235, 0.10), transparent 24%),
+                linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%);
+            min-height: 100vh;
+        }
+
+        .topbar {
+            background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+        }
+
+        .topbar .nav-link,
+        .topbar .navbar-brand {
+            color: #fff !important;
+        }
+
+        .hero-card,
+        .panel-card,
+        .choice-card {
+            border: 0;
+            border-radius: 1.25rem;
+            box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
+        }
+
+        .hero-card {
+            background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+            color: #fff;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .hero-card::after {
+            content: "";
+            position: absolute;
+            inset: auto -12% -38% auto;
+            width: 260px;
+            height: 260px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: .45rem;
+            padding: .4rem .85rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            font-size: .875rem;
+        }
+
+        .choice-card {
+            background: #fff;
+            transition: transform .2s ease, box-shadow .2s ease;
+            height: 100%;
+            width: 100%;
+            border: 0;
+            text-align: left;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        .choice-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+        }
+
+        .choice-card.active {
+            border: 2px solid rgba(37, 99, 235, 0.35);
+            box-shadow: 0 18px 40px rgba(37, 99, 235, 0.16);
+        }
+
+        .choice-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            color: #fff;
+        }
+
+        .kta-icon { background: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%); }
+        .kur-icon { background: linear-gradient(135deg, #059669 0%, #10b981 100%); }
+
+        .panel-card {
+            background: #fff;
+        }
+
+        .section-title {
+            color: #0f172a;
+            font-weight: 800;
+        }
+
+        .form-section {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transform: translateY(16px);
+            pointer-events: none;
+            transition: max-height .45s ease, opacity .35s ease, transform .35s ease;
+        }
+
+        .form-section.is-visible {
+            max-height: 5000px;
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+    </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-info">
+    <nav class="navbar navbar-expand-lg topbar navbar-dark">
         <div class="container">
-            <a class="navbar-brand" href="dashboard.php">Dasbor Anggota</a>
+            <a class="navbar-brand fw-semibold" href="dashboard.php">
+                <i class="fas fa-user-group me-2"></i>Dasbor Anggota
+            </a>
             <div class="navbar-nav ms-auto">
                 <a class="nav-link" href="../proses/logout.php">Logout</a>
             </div>
         </div>
     </nav>
-    <div class="container py-4">
-        <div class="row justify-content-center">
-            <div class="col-lg-10">
-                <div class="card border-0 shadow-sm mb-4">
-                    <div class="card-body p-4">
-                        <div class="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-center">
-                            <div>
-                                <h2 class="mb-1">Form Pengajuan Kredit</h2>
-                                <p class="text-muted mb-0">
-                                    Lengkapi data sesuai jenis pinjaman. KTA fokus pada kemampuan bayar pribadi, sedangkan KUR fokus pada kelayakan usaha.
-                                </p>
-                            </div>
-                            <a href="status.php" class="btn btn-outline-info">Lihat Status Pengajuan</a>
+    <main class="container py-4 py-lg-5">
+        <section class="card hero-card mb-4">
+            <div class="card-body p-4 p-lg-5 position-relative">
+                <div class="row align-items-center g-4">
+                    <div class="col-lg-8">
+                        <div class="hero-badge mb-3">
+                            <i class="fas fa-wand-magic-sparkles"></i>
+                            <span>Langkah pengajuan yang mudah</span>
                         </div>
+                        <h1 class="display-6 fw-bold mb-3">Form Pengajuan Kredit</h1>
+                        <p class="lead mb-0 text-white-75" style="max-width: 46rem;">
+                            Pilih jenis pinjaman dulu, lalu isi data pribadi atau data usaha sesuai kebutuhan. Tampilan akan menyesuaikan otomatis agar lebih mudah dipahami.
+                        </p>
+                    </div>
+                    <div class="col-lg-4 text-lg-end">
+                        <a href="status.php" class="btn btn-light btn-lg">
+                            <i class="fas fa-list-check me-2"></i>Lihat Status Pengajuan
+                        </a>
                     </div>
                 </div>
+            </div>
+        </section>
 
-                <form action="../proses/submit_application.php" method="POST" enctype="multipart/form-data" class="card border-0 shadow-sm">
-                    <div class="card-body p-4">
+        <div class="row g-4 justify-content-center mb-4">
+            <div class="col-12">
+                <div class="alert alert-light border text-center mb-0">
+                    Pilih salah satu kartu di bawah untuk menampilkan form pengajuan di bagian bawah.
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <button type="button" class="choice-card p-4 w-100 text-start <?php echo $selectedJenis === 'KTA' ? 'active' : ''; ?>" data-jenis="KTA">
+                        <div class="d-flex align-items-start justify-content-between mb-3">
+                            <div class="choice-icon kta-icon"><i class="fas fa-id-card"></i></div>
+                            <span class="badge text-bg-primary">Pribadi</span>
+                        </div>
+                        <h4 class="section-title mb-2">KTA</h4>
+                        <p class="text-muted mb-0">Fokus pada kemampuan bayar pribadi dan dokumen pendukung yang relevan.</p>
+                </button>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <button type="button" class="choice-card p-4 w-100 text-start <?php echo $selectedJenis === 'KUR' ? 'active' : ''; ?>" data-jenis="KUR">
+                        <div class="d-flex align-items-start justify-content-between mb-3">
+                            <div class="choice-icon kur-icon"><i class="fas fa-store"></i></div>
+                            <span class="badge text-bg-success">Usaha</span>
+                        </div>
+                        <h4 class="section-title mb-2">KUR</h4>
+                        <p class="text-muted mb-0">Fokus pada usaha, omzet, laba, dan kelengkapan legalitas usaha.</p>
+                </button>
+            </div>
+        </div>
+
+        <div class="form-section row justify-content-center <?php echo $selectedJenis !== '' ? 'is-visible' : ''; ?>" id="formSection">
+            <div class="col-lg-10">
+                <form action="../proses/submit_application.php" method="POST" enctype="multipart/form-data" class="card panel-card">
+                    <div class="card-body p-4 p-lg-5">
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+                            <div>
+                                <h3 class="section-title mb-1">Lengkapi Data Pengajuan</h3>
+                                <p class="text-muted mb-0">Form di bawah akan menyesuaikan pilihan jenis pinjaman.</p>
+                            </div>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <span class="badge text-bg-light border">1. Pilih jenis</span>
+                                <span class="badge text-bg-light border">2. Isi data</span>
+                                <span class="badge text-bg-light border">3. Unggah dokumen</span>
+                            </div>
+                        </div>
+
+                        <input type="hidden" name="jenis_kredit" id="jenis_kredit" value="<?php echo htmlspecialchars($selectedJenis); ?>">
+
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label class="form-label">Jenis Kredit</label>
-                                <select name="jenis_kredit" id="jenis_kredit" class="form-select" required>
-                                    <option value="KTA">KTA - Kredit Tanpa Agunan</option>
-                                    <option value="KUR">KUR - Kredit Usaha Rakyat</option>
-                                </select>
+                                <div class="form-control bg-light">
+                                    <strong id="jenisLabel"><?php echo $selectedJenis === 'KTA' ? 'KTA - Kredit Tanpa Agunan' : ($selectedJenis === 'KUR' ? 'KUR - Kredit Usaha Rakyat' : 'Belum dipilih'); ?></strong>
+                                </div>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Jumlah Pinjaman</label>
                                 <input type="number" name="jumlah_pinjaman" class="form-control" min="100000" step="10000" required>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label">Catatan</label>
-                                <div class="form-control bg-light text-muted">Data akan otomatis disesuaikan dengan jenis pinjaman.</div>
+                                <div class="alert alert-primary mb-0 py-3">
+                                    <strong>Tips:</strong> isi sesuai kondisi sebenarnya agar hasil penilaian lebih akurat.
+                                </div>
                             </div>
                         </div>
 
@@ -75,8 +251,8 @@ $member = $stmt->get_result()->fetch_assoc();
                         <div id="ktaFields" class="mt-4">
                             <div class="d-flex align-items-center justify-content-between mb-3">
                                 <div>
-                                    <h5 class="mb-1">Detail KTA</h5>
-                                    <p class="text-muted mb-0">Isi data pribadi dan kemampuan bayar.</p>
+                                    <h5 class="mb-1">Data KTA</h5>
+                                    <p class="text-muted mb-0">Isi data pribadi, penghasilan, dan dokumen pendukung.</p>
                                 </div>
                                 <span class="badge bg-primary">Pribadi</span>
                             </div>
@@ -133,7 +309,7 @@ $member = $stmt->get_result()->fetch_assoc();
                         <div id="kurFields" class="mt-4" style="display: none;">
                             <div class="d-flex align-items-center justify-content-between mb-3">
                                 <div>
-                                    <h5 class="mb-1">Detail KUR</h5>
+                                    <h5 class="mb-1">Data KUR</h5>
                                     <p class="text-muted mb-0">Isi data usaha secara jelas dan konsisten.</p>
                                 </div>
                                 <span class="badge bg-success">Usaha</span>
@@ -243,18 +419,21 @@ $member = $stmt->get_result()->fetch_assoc();
                             </div>
                         </div>
 
-                        <div class="d-flex justify-content-end mt-4">
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mt-4">
+                            <a href="dashboard.php" class="btn btn-outline-secondary">Kembali</a>
                             <button type="submit" class="btn btn-primary px-4">Ajukan Pengajuan</button>
                         </div>
                     </div>
                 </form>
             </div>
         </div>
-    </div>
+    </main>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const jenisInfo = document.getElementById('jenisInfo');
         const jenisSelect = document.getElementById('jenis_kredit');
+        const jenisLabel = document.getElementById('jenisLabel');
+        const formSection = document.getElementById('formSection');
         const ktaFields = document.getElementById('ktaFields');
         const kurFields = document.getElementById('kurFields');
         const ktaDocs = document.getElementById('ktaDocs');
@@ -276,6 +455,25 @@ $member = $stmt->get_result()->fetch_assoc();
         const ktaSuratKerjaInput = ktaDocs.querySelector('input[name="surat_kerja"]');
         const ktaKartuPelajarInput = ktaDocs.querySelector('input[name="kartu_pelajar"]');
         const ktaKartuKeluargaInput = ktaDocs.querySelector('input[name="kartu_keluarga"]');
+        const choiceCards = document.querySelectorAll('.choice-card[data-jenis]');
+
+        function setChoiceActive(jenis) {
+            choiceCards.forEach((card) => {
+                card.classList.toggle('active', card.getAttribute('data-jenis') === jenis);
+            });
+        }
+
+        function openFormWithJenis(jenis) {
+            if (!['KTA', 'KUR'].includes(jenis)) {
+                return;
+            }
+
+            jenisSelect.value = jenis;
+            setChoiceActive(jenis);
+            updateJenisInfo();
+            formSection.classList.add('is-visible');
+            formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
 
         function updateStatusPekerjaanField() {
             const selectedStatus = statusPekerjaanSelect.value;
@@ -319,13 +517,23 @@ $member = $stmt->get_result()->fetch_assoc();
         }
 
         function updateJenisInfo() {
-            const isKTA = jenisSelect.value === 'KTA';
+            const jenis = jenisSelect.value;
+            if (!jenis) {
+                jenisInfo.textContent = 'Pilih KTA atau KUR di atas untuk mulai mengisi pengajuan.';
+                ktaFields.style.display = 'none';
+                kurFields.style.display = 'none';
+                ktaDocs.style.display = 'none';
+                kurDocs.style.display = 'none';
+                return;
+            }
+
+            const isKTA = jenis === 'KTA';
             const ktaInputs = ktaFields.querySelectorAll('input, select');
             const kurInputs = kurFields.querySelectorAll('input, select');
             const ktaDocInputs = ktaDocs.querySelectorAll('input');
             const kurDocInputs = kurDocs.querySelectorAll('input');
 
-            if (jenisSelect.value === 'KTA') {
+            if (jenis === 'KTA') {
                 jenisInfo.textContent = 'KTA fokus ke kemampuan bayar pribadi. Untuk pelajar/mahasiswa, data tanggungan dan dokumen mahasiswa akan diprioritaskan.';
                 ktaFields.style.display = 'block';
                 kurFields.style.display = 'none';
@@ -338,6 +546,10 @@ $member = $stmt->get_result()->fetch_assoc();
                 ktaDocs.style.display = 'none';
                 kurDocs.style.display = 'flex';
             }
+
+            jenisLabel.textContent = isKTA
+                ? 'KTA - Kredit Tanpa Agunan'
+                : 'KUR - Kredit Usaha Rakyat';
 
             ktaInputs.forEach((input) => {
                 input.required = false;
@@ -396,9 +608,20 @@ $member = $stmt->get_result()->fetch_assoc();
             updateStatusPekerjaanField();
         }
 
-        jenisSelect.addEventListener('change', updateJenisInfo);
         statusPekerjaanSelect.addEventListener('change', updateStatusPekerjaanField);
         updateJenisInfo();
+
+        if (jenisSelect.value) {
+            setChoiceActive(jenisSelect.value);
+            formSection.classList.add('is-visible');
+            formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        choiceCards.forEach((card) => {
+            card.addEventListener('click', function() {
+                openFormWithJenis(this.getAttribute('data-jenis'));
+            });
+        });
     </script>
 </body>
 </html>

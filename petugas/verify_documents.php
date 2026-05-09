@@ -12,7 +12,7 @@ $saw = new SAWCalculator($conn);
 $activeTypes = $conn->query(
     "SELECT DISTINCT jenis_kredit
      FROM pengajuan
-     WHERE status IN ('pending', 'verified')"
+     WHERE status IN ('verified', 'accepted')"
 );
 if ($activeTypes) {
     while ($row = $activeTypes->fetch_assoc()) {
@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $status = $_POST['status'] ?? '';
     $catatan = trim($_POST['catatan'] ?? '');
 
-    if ($pengajuan_id > 0 && in_array($status, ['verified', 'rejected'], true)) {
+    if ($pengajuan_id > 0 && in_array($status, ['verified', 'accepted', 'document_rejected', 'rejected'], true)) {
         $stmt = $conn->prepare('SELECT jenis_kredit FROM pengajuan WHERE id = ?');
         $stmt->bind_param('i', $pengajuan_id);
         $stmt->execute();
@@ -45,9 +45,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->bind_param("si", $status, $pengajuan_id);
             $stmt->execute();
 
-            $aksi = $status === 'verified'
-                ? 'Dokumen diverifikasi'
-                : 'Dokumen ditolak';
+            $aksi = match ($status) {
+                'verified' => 'Dokumen diverifikasi',
+                'accepted' => 'Validasi akhir disetujui CU',
+                'document_rejected' => 'Dokumen ditolak',
+                'rejected' => 'Validasi akhir ditolak CU',
+                default => 'Perubahan status pengajuan',
+            };
 
             if ($catatan !== '') {
                 $aksi .= ' - ' . $catatan;
@@ -95,7 +99,7 @@ $result = $conn->query(
      JOIN users u ON a.user_id = u.id
      LEFT JOIN hasil_saw h ON h.pengajuan_id = p.id
      LEFT JOIN dokumen d ON d.pengajuan_id = p.id
-     WHERE p.status IN ('pending', 'verified')
+     WHERE p.status IN ('pending', 'verified', 'document_rejected')
      GROUP BY p.id, h.skor_terbobot, h.persentase_saw, h.kelayakan
      ORDER BY p.created_at DESC"
 );
@@ -132,7 +136,12 @@ unset($app);
 
 function statusBadgeClass($status)
 {
-    return $status === 'pending' ? 'warning' : ($status === 'verified' ? 'info' : 'danger');
+    return match ($status) {
+        'pending' => 'warning',
+        'verified' => 'info',
+        'document_rejected' => 'danger',
+        default => 'secondary',
+    };
 }
 
 function sawBadgeClass($kelayakan)
@@ -144,6 +153,13 @@ function sawBadgeClass($kelayakan)
         return 'danger';
     }
     return 'secondary';
+}
+
+function eligibilityLabel($value)
+{
+    return $value === 'layak'
+        ? 'Memenuhi Batas Minimum'
+        : 'Belum Memenuhi Batas Minimum';
 }
 
 function isStudentApplicant($detailJson)
@@ -206,9 +222,10 @@ function statusLabel($status)
 {
     return match ($status) {
         'pending' => 'Menunggu',
-        'verified' => 'Terverifikasi',
-        'accepted' => 'Disetujui',
-        'rejected' => 'Ditolak',
+        'verified' => 'Siap Validasi Final',
+        'document_rejected' => 'Ditolak Dokumen',
+        'accepted' => 'Diterima CU',
+        'rejected' => 'Ditolak CU',
         default => ucfirst((string) $status),
     };
 }
@@ -233,6 +250,13 @@ function statusLabel($status)
             background: linear-gradient(135deg, #0f766e 0%, #2563eb 100%);
             color: #fff;
         }
+
+        .section-card {
+            border: 0;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, .08);
+            border-radius: 1rem;
+        }
+
         .doc-pill {
             display: inline-flex;
             align-items: center;
@@ -265,12 +289,19 @@ function statusLabel($status)
                             Periksa kelengkapan dokumen, lihat ringkasan pengajuan KTA/KUR, lalu tandai dokumen sebagai diverifikasi atau ditolak.
                         </p>
                     </div>
-                    <a href="input_criteria.php" class="btn btn-light">Lanjut Input Nilai</a>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="dashboard.php" class="btn btn-light">
+                            <i class="fas fa-house me-2"></i>Kembali ke Dashboard
+                        </a>
+                        <a href="rankings.php" class="btn btn-outline-light">
+                            <i class="fas fa-ranking-star me-2"></i>Lihat Peringkat
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="card border-0 shadow-sm">
+        <div class="card section-card">
             <div class="card-body">
                 <table id="documentsTable" class="table table-striped align-middle">
                     <thead>
@@ -316,14 +347,14 @@ function statusLabel($status)
                             </td>
                             <td>
                                 <?php if (!empty($app['kelayakan'])): ?>
-                                    <span class="badge bg-<?php echo sawBadgeClass($app['kelayakan']); ?>">
-                                    <?php echo $app['kelayakan'] === 'layak' ? 'Layak' : 'Tidak Layak'; ?>
+                                    <span class="badge bg-<?php echo sawBadgeClass($app['kelayakan']); ?> text-wrap" style="white-space: normal;">
+                                    <?php echo eligibilityLabel($app['kelayakan']); ?>
                                     </span>
                                     <div class="small text-muted mt-1">
                                         <?php echo number_format((float) $app['persentase_saw'], 2); ?>%
                                     </div>
                                 <?php else: ?>
-                                    <span class="text-muted">Belum dihitung</span>
+                                    <span class="text-muted">Belum ada rekomendasi</span>
                                 <?php endif; ?>
                             </td>
                             <td>
@@ -336,22 +367,41 @@ function statusLabel($status)
                                 <button type="button" class="btn btn-sm btn-outline-primary mb-1" onclick="openDocModal(<?php echo (int) $app['id']; ?>, <?php echo htmlspecialchars(json_encode($app), ENT_QUOTES, 'UTF-8'); ?>)">
                                     Detail
                                 </button>
-                                <form method="POST" class="d-inline">
-                                    <input type="hidden" name="pengajuan_id" value="<?php echo (int) $app['id']; ?>">
-                                    <input type="hidden" name="status" value="verified">
-                                    <input type="hidden" name="catatan" value="Dokumen lengkap dan sesuai">
-                                    <button type="submit" class="btn btn-sm btn-success mb-1" <?php echo $app['status'] === 'verified' ? 'disabled' : ''; ?>>
-                                        Verifikasi
-                                    </button>
-                                </form>
-                                <form method="POST" class="d-inline">
-                                    <input type="hidden" name="pengajuan_id" value="<?php echo (int) $app['id']; ?>">
-                                    <input type="hidden" name="status" value="rejected">
-                                    <input type="hidden" name="catatan" value="Dokumen tidak lengkap atau tidak sesuai">
-                                    <button type="submit" class="btn btn-sm btn-danger mb-1" <?php echo $app['status'] === 'verified' ? 'disabled' : ''; ?>>
-                                        Tolak
-                                    </button>
-                                </form>
+                                <?php if ($app['status'] === 'pending'): ?>
+                                    <form method="POST" class="d-inline">
+                                        <input type="hidden" name="pengajuan_id" value="<?php echo (int) $app['id']; ?>">
+                                        <input type="hidden" name="status" value="verified">
+                                        <input type="hidden" name="catatan" value="Dokumen lengkap dan siap validasi akhir">
+                                        <button type="submit" class="btn btn-sm btn-success mb-1">
+                                            Verifikasi Dokumen
+                                        </button>
+                                    </form>
+                                    <form method="POST" class="d-inline">
+                                        <input type="hidden" name="pengajuan_id" value="<?php echo (int) $app['id']; ?>">
+                                        <input type="hidden" name="status" value="document_rejected">
+                                        <input type="hidden" name="catatan" value="Dokumen tidak lengkap atau tidak sesuai">
+                                        <button type="submit" class="btn btn-sm btn-danger mb-1">
+                                            Tolak Dokumen
+                                        </button>
+                                    </form>
+                                <?php elseif ($app['status'] === 'verified'): ?>
+                                    <form method="POST" class="d-inline">
+                                        <input type="hidden" name="pengajuan_id" value="<?php echo (int) $app['id']; ?>">
+                                        <input type="hidden" name="status" value="accepted">
+                                        <input type="hidden" name="catatan" value="Validasi akhir disetujui CU">
+                                        <button type="submit" class="btn btn-sm btn-success mb-1">
+                                            Validasi Akhir
+                                        </button>
+                                    </form>
+                                    <form method="POST" class="d-inline">
+                                        <input type="hidden" name="pengajuan_id" value="<?php echo (int) $app['id']; ?>">
+                                        <input type="hidden" name="status" value="rejected">
+                                        <input type="hidden" name="catatan" value="Validasi akhir ditolak CU">
+                                        <button type="submit" class="btn btn-sm btn-danger mb-1">
+                                            Tolak CU
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
                             </td>
                         </tr>
                         <?php endforeach; ?>
@@ -451,9 +501,10 @@ function statusLabel($status)
             const isStudent = detail.status_pekerjaan_asli === 'Pelajar/Mahasiswa';
             const statusMap = {
                 pending: 'Menunggu',
-                verified: 'Terverifikasi',
-                accepted: 'Disetujui',
-                rejected: 'Ditolak',
+                verified: 'Siap Validasi Final',
+                document_rejected: 'Ditolak Dokumen',
+                accepted: 'Diterima CU',
+                rejected: 'Ditolak CU',
             };
             const detailRows = [
                 ['Nama', app.nama],

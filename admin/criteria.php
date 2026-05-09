@@ -4,6 +4,7 @@ require_once '../function/auth.php';
 checkLogin();
 checkRole('admin');
 require_once '../config/database.php';
+require_once 'ui.php';
 
 $conn = getDBConnection();
 
@@ -45,6 +46,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $result = $conn->query('SELECT * FROM kriteria ORDER BY jenis_kredit, id');
 $criteria = $result->fetch_all(MYSQLI_ASSOC);
+
+function criterionKindLabel(string $jenis): string
+{
+    return $jenis === 'benefit' ? 'Keuntungan' : 'Biaya';
+}
+
+function criterionKindClass(string $jenis): string
+{
+    return $jenis === 'benefit' ? 'success' : 'danger';
+}
+
+function criterionTargetClass(string $target): string
+{
+    return match ($target) {
+        'KTA' => 'primary',
+        'KUR' => 'success',
+        default => 'secondary',
+    };
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -55,59 +75,116 @@ $criteria = $result->fetch_all(MYSQLI_ASSOC);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+    <?php echo adminPageStyles(); ?>
+    <style>
+        .criteria-card {
+            border: 0;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, .08);
+            border-radius: 1rem;
+        }
+
+        .criteria-table thead th {
+            background: #f8fafc;
+            color: #475569;
+            font-size: .875rem;
+        }
+
+        .criteria-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            padding: .3rem .7rem;
+            border-radius: 999px;
+            font-size: .82rem;
+            font-weight: 600;
+        }
+
+        .criteria-empty {
+            padding: 2rem;
+            border: 1px dashed #cbd5e1;
+            border-radius: 1rem;
+            background: #f8fafc;
+        }
+    </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="dashboard.php">Dasbor Admin</a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="../proses/logout.php">Logout</a>
-            </div>
-        </div>
-    </nav>
-    <div class="container mt-4">
+    <?php echo renderAdminHeader('criteria', 'Kelola Kriteria', 'Atur bobot dan jenis kriteria untuk perhitungan SAW.'); ?>
+    <div class="container admin-shell">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="mb-0">Kelola Kriteria</h2>
+            <div>
+                <h2 class="mb-1">Kelola Kriteria</h2>
+                <p class="text-muted mb-0">Kelola kriteria benefit dan cost untuk KTA, KUR, atau keduanya.</p>
+            </div>
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCriteriaModal">
                 <i class="fas fa-plus"></i> Tambah Kriteria
             </button>
         </div>
 
-        <table id="criteriaTable" class="table table-striped">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Nama</th>
-                    <th>Target</th>
-                    <th>Bobot</th>
-                    <th>Jenis</th>
-                    <th>Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($criteria as $c): ?>
-                <tr>
-                    <td><?php echo (int) $c['id']; ?></td>
-                    <td><?php echo htmlspecialchars($c['nama']); ?></td>
-                    <td><?php echo htmlspecialchars($c['jenis_kredit']); ?></td>
-                    <td><?php echo number_format((float) $c['bobot'], 2); ?></td>
-                    <td><?php echo $c['jenis'] === 'benefit' ? 'Keuntungan' : 'Biaya'; ?></td>
-                    <td>
-                        <button class="btn btn-sm btn-warning"
-                            onclick="editCriteria(<?php echo (int) $c['id']; ?>, <?php echo json_encode($c['nama']); ?>, <?php echo number_format((float) $c['bobot'], 2, '.', ''); ?>, <?php echo json_encode($c['jenis']); ?>, <?php echo json_encode($c['jenis_kredit']); ?>)">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <form method="POST" class="d-inline" onsubmit="return confirm('Hapus kriteria ini?')">
-                            <input type="hidden" name="id" value="<?php echo (int) $c['id']; ?>">
-                            <button type="submit" name="delete_criteria" class="btn btn-sm btn-danger">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+        <div class="card criteria-card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table id="criteriaTable" class="table table-hover align-middle mb-0 criteria-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nama</th>
+                                <th>Target</th>
+                                <th>Bobot</th>
+                                <th>Jenis</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($criteria as $c): ?>
+                            <tr>
+                                <td class="text-muted">#<?php echo (int) $c['id']; ?></td>
+                                <td class="fw-semibold"><?php echo htmlspecialchars($c['nama']); ?></td>
+                                <td>
+                                    <span class="criteria-pill text-bg-<?php echo criterionTargetClass((string) $c['jenis_kredit']); ?>">
+                                        <?php echo htmlspecialchars((string) $c['jenis_kredit']); ?>
+                                    </span>
+                                </td>
+                                <td><?php echo number_format((float) $c['bobot'], 2); ?></td>
+                                <td>
+                                    <span class="criteria-pill text-bg-<?php echo criterionKindClass((string) $c['jenis']); ?>">
+                                        <?php echo criterionKindLabel((string) $c['jenis']); ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-sm btn-outline-warning"
+                                            data-id="<?php echo (int) $c['id']; ?>"
+                                            data-nama="<?php echo htmlspecialchars($c['nama'], ENT_QUOTES); ?>"
+                                            data-bobot="<?php echo htmlspecialchars(number_format((float) $c['bobot'], 2, '.', ''), ENT_QUOTES); ?>"
+                                            data-jenis="<?php echo htmlspecialchars($c['jenis'], ENT_QUOTES); ?>"
+                                            data-jenis-kredit="<?php echo htmlspecialchars($c['jenis_kredit'], ENT_QUOTES); ?>"
+                                            onclick="editCriteria(this)">
+                                            <i class="fas fa-pen-to-square me-1"></i>Edit
+                                        </button>
+                                        <form method="POST" class="d-inline" onsubmit="return confirm('Hapus kriteria ini?')">
+                                            <input type="hidden" name="id" value="<?php echo (int) $c['id']; ?>">
+                                            <button type="submit" name="delete_criteria" class="btn btn-sm btn-outline-danger">
+                                                <i class="fas fa-trash me-1"></i>Hapus
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                            <?php if (empty($criteria)): ?>
+                            <tr>
+                                <td colspan="6">
+                                    <div class="criteria-empty text-center text-muted">
+                                        Belum ada data kriteria. Silakan tambahkan kriteria pertama.
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="modal fade" id="addCriteriaModal" tabindex="-1">
@@ -119,6 +196,9 @@ $criteria = $result->fetch_all(MYSQLI_ASSOC);
                 </div>
                 <form method="POST">
                     <div class="modal-body">
+                        <div class="alert alert-light border">
+                            Tambahkan kriteria baru dan tentukan apakah termasuk <strong>Keuntungan</strong> atau <strong>Biaya</strong>.
+                        </div>
                         <div class="mb-3">
                             <label>Nama</label>
                             <input type="text" name="nama" class="form-control" required>
@@ -161,6 +241,9 @@ $criteria = $result->fetch_all(MYSQLI_ASSOC);
                 </div>
                 <form method="POST">
                     <div class="modal-body">
+                        <div class="alert alert-light border">
+                            Perubahan akan dipakai pada perhitungan SAW berikutnya.
+                        </div>
                         <input type="hidden" name="id" id="edit_id">
                         <div class="mb-3">
                             <label>Nama</label>
@@ -204,12 +287,12 @@ $criteria = $result->fetch_all(MYSQLI_ASSOC);
             $('#criteriaTable').DataTable();
         });
 
-        function editCriteria(id, nama, bobot, jenis, jenisKredit) {
-            $('#edit_id').val(id);
-            $('#edit_nama').val(nama);
-            $('#edit_bobot').val(bobot);
-            $('#edit_jenis').val(jenis);
-            $('#edit_jenis_kredit').val(jenisKredit);
+        function editCriteria(button) {
+            $('#edit_id').val($(button).data('id'));
+            $('#edit_nama').val($(button).data('nama'));
+            $('#edit_bobot').val($(button).data('bobot'));
+            $('#edit_jenis').val($(button).data('jenis'));
+            $('#edit_jenis_kredit').val($(button).data('jenis-kredit'));
             const modal = new bootstrap.Modal(document.getElementById('editCriteriaModal'));
             modal.show();
         }

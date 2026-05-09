@@ -4,6 +4,7 @@ require_once '../function/auth.php';
 checkLogin();
 checkRole('admin');
 require_once '../config/database.php';
+require_once 'ui.php';
 
 $conn = getDBConnection();
 
@@ -108,25 +109,24 @@ $members = $result->fetch_all(MYSQLI_ASSOC);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+    <?php echo adminPageStyles(); ?>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="dashboard.php">Dasbor Admin</a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="../proses/logout.php">Logout</a>
-            </div>
-        </div>
-    </nav>
-    <div class="container mt-4">
+    <?php echo renderAdminHeader('members', 'Kelola Anggota', 'Data khusus anggota atau peminjam di sistem.'); ?>
+    <div class="container admin-shell">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="mb-0">Kelola Anggota</h2>
+            <div>
+                <h2 class="mb-1">Kelola Anggota</h2>
+                <p class="text-muted mb-0">Data akun dan biodata anggota yang mengajukan kredit.</p>
+            </div>
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addMemberModal">
                 <i class="fas fa-plus"></i> Tambah Anggota
             </button>
         </div>
 
-        <table id="membersTable" class="table table-striped">
+        <div class="card admin-card">
+            <div class="card-body">
+        <table id="membersTable" class="table table-striped mb-0">
             <thead>
                 <tr>
                     <th>ID</th>
@@ -148,14 +148,14 @@ $members = $result->fetch_all(MYSQLI_ASSOC);
                     <td><?php echo htmlspecialchars($m['email']); ?></td>
                     <td><?php echo htmlspecialchars($m['created_at']); ?></td>
                     <td>
-                        <button class="btn btn-sm btn-warning"
+                        <button class="btn btn-sm btn-outline-warning"
                             onclick="editMember(<?php echo (int) $m['user_id']; ?>, <?php echo (int) $m['anggota_id']; ?>, <?php echo json_encode($m['username']); ?>, <?php echo json_encode($m['nama']); ?>, <?php echo json_encode($m['alamat']); ?>, <?php echo json_encode($m['no_hp']); ?>, <?php echo json_encode($m['email']); ?>, <?php echo json_encode($m['tanggal_lahir']); ?>)">
-                            <i class="fas fa-edit"></i>
+                            <i class="fas fa-pen-to-square me-1"></i>Edit
                         </button>
                         <form method="POST" class="d-inline" onsubmit="return confirm('Hapus anggota dan pengguna terkait?')">
                             <input type="hidden" name="user_id" value="<?php echo (int) $m['user_id']; ?>">
-                            <button type="submit" name="delete_member" class="btn btn-sm btn-danger">
-                                <i class="fas fa-trash"></i>
+                            <button type="submit" name="delete_member" class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-trash me-1"></i>Hapus
                             </button>
                         </form>
                     </td>
@@ -163,6 +163,8 @@ $members = $result->fetch_all(MYSQLI_ASSOC);
                 <?php endforeach; ?>
             </tbody>
         </table>
+            </div>
+        </div>
     </div>
 
     <div class="modal fade" id="addMemberModal" tabindex="-1">

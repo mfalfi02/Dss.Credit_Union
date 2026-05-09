@@ -4,18 +4,44 @@ require_once '../function/auth.php';
 checkLogin();
 checkRole('admin');
 require_once '../config/database.php';
+require_once 'ui.php';
+require_once '../function/saw.php';
 
 $conn = getDBConnection();
+$saw = new SAWCalculator($conn);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $transactionStarted = false;
     try {
         if (isset($_POST['update_application'])) {
             $id = (int) ($_POST['id'] ?? 0);
             $status = $_POST['status'] ?? 'pending';
-            if ($id > 0 && in_array($status, ['pending', 'verified', 'accepted', 'rejected'], true)) {
-                $stmt = $conn->prepare('UPDATE pengajuan SET status = ? WHERE id = ?');
-                $stmt->bind_param('si', $status, $id);
+            $jumlah_pinjaman = (float) ($_POST['jumlah_pinjaman'] ?? 0);
+
+            if ($id > 0 && $jumlah_pinjaman > 0 && in_array($status, ['pending', 'verified', 'document_rejected', 'accepted', 'rejected'], true)) {
+                $stmt = $conn->prepare('SELECT jenis_kredit, detail_pinjaman FROM pengajuan WHERE id = ?');
+                $stmt->bind_param('i', $id);
                 $stmt->execute();
+                $application = $stmt->get_result()->fetch_assoc();
+
+                if ($application) {
+                    $detail = json_decode((string) ($application['detail_pinjaman'] ?? '{}'), true);
+                    if (!is_array($detail)) {
+                        $detail = [];
+                    }
+                    $detail['jumlah_pinjaman'] = $jumlah_pinjaman;
+                    $detailJson = json_encode($detail, JSON_UNESCAPED_UNICODE);
+
+                    $conn->begin_transaction();
+                    $transactionStarted = true;
+                    $stmt = $conn->prepare('UPDATE pengajuan SET status = ?, jumlah_pinjaman = ?, detail_pinjaman = ? WHERE id = ?');
+                    $stmt->bind_param('sdsi', $status, $jumlah_pinjaman, $detailJson, $id);
+                    $stmt->execute();
+                    $conn->commit();
+                    $transactionStarted = false;
+
+                    $saw->calculateRanking($application['jenis_kredit']);
+                }
             }
         } elseif (isset($_POST['delete_application'])) {
             $id = (int) ($_POST['id'] ?? 0);
@@ -29,13 +55,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: applications.php');
         exit();
     } catch (Throwable $e) {
+        if ($transactionStarted) {
+            $conn->rollback();
+        }
         header('Location: applications.php?error=1');
         exit();
     }
 }
 
 $result = $conn->query(
-    'SELECT p.id, p.jenis_kredit, p.jumlah_pinjaman, p.detail_pinjaman, p.status, p.created_at,
+            'SELECT p.id, p.jenis_kredit, p.jumlah_pinjaman, p.detail_pinjaman, p.status, p.created_at,
             a.nama, u.username,
             (SELECT COUNT(*) FROM dokumen d WHERE d.pengajuan_id = p.id) AS dokumen_count,
             (SELECT COUNT(*) FROM penilaian n WHERE n.pengajuan_id = p.id) AS penilaian_count,
@@ -79,10 +108,23 @@ function statusLabel($status)
 {
     return match ($status) {
         'pending' => 'Menunggu',
-        'verified' => 'Terverifikasi',
-        'accepted' => 'Disetujui',
-        'rejected' => 'Ditolak',
+        'verified' => 'Siap Validasi Final',
+        'document_rejected' => 'Ditolak Dokumen',
+        'accepted' => 'Diterima CU',
+        'rejected' => 'Ditolak CU',
         default => ucfirst((string) $status),
+    };
+}
+
+function statusBadgeClass($status)
+{
+    return match ($status) {
+        'pending' => 'warning',
+        'verified' => 'info',
+        'document_rejected' => 'danger',
+        'accepted' => 'success',
+        'rejected' => 'danger',
+        default => 'secondary',
     };
 }
 ?>
@@ -95,19 +137,20 @@ function statusLabel($status)
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+    <?php echo adminPageStyles(); ?>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="dashboard.php">Dasbor Admin</a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="../proses/logout.php">Logout</a>
+    <?php echo renderAdminHeader('applications', 'Kelola Pengajuan', 'Pantau status pinjaman, dokumen, dan hasil SAW dengan lebih cepat.'); ?>
+    <div class="container admin-shell">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h2 class="mb-1">Pengajuan</h2>
+                <p class="text-muted mb-0">Lihat status, dokumen, dan hasil SAW untuk setiap permohonan.</p>
             </div>
         </div>
-    </nav>
-    <div class="container mt-4">
-        <h2>Pengajuan</h2>
-        <table id="applicationsTable" class="table table-striped">
+        <div class="card admin-card">
+            <div class="card-body">
+        <table id="applicationsTable" class="table table-striped align-middle mb-0">
             <thead>
                 <tr>
                     <th>ID</th>
@@ -118,7 +161,7 @@ function statusLabel($status)
                     <th>Status</th>
                     <th>Dokumen</th>
                     <th>Penilaian</th>
-                    <th>SAW</th>
+                    <th>Hasil SAW</th>
                     <th>Detail</th>
                     <th>Aksi</th>
                 </tr>
@@ -132,13 +175,7 @@ function statusLabel($status)
                     <td><?php echo htmlspecialchars($app['jenis_kredit']); ?></td>
                     <td>Rp <?php echo number_format((float) $app['jumlah_pinjaman'], 0, ',', '.'); ?></td>
                     <td>
-                        <span class="badge bg-<?php
-                            echo $app['status'] === 'pending' ? 'warning' : (
-                                $app['status'] === 'verified' ? 'info' : (
-                                    $app['status'] === 'accepted' ? 'success' : 'danger'
-                                )
-                            );
-                        ?>">
+                        <span class="badge bg-<?php echo statusBadgeClass($app['status']); ?>">
                             <?php echo statusLabel($app['status']); ?>
                         </span>
                     </td>
@@ -147,29 +184,25 @@ function statusLabel($status)
                     <td>
                         <?php if ($app['skor_terbobot'] !== null): ?>
                             <div><?php echo number_format((float) $app['skor_terbobot'], 4); ?> (#<?php echo (int) $app['ranking']; ?>)</div>
-                            <small class="text-muted">
+                            <small class="text-muted d-block" style="white-space: normal;">
                                 <?php echo number_format((float) $app['persentase_saw'], 2); ?>% -
-                                <?php echo $app['kelayakan'] === 'layak' ? 'Layak' : 'Tidak Layak'; ?>
+                                <?php echo $app['kelayakan'] === 'layak' ? 'Layak Direkomendasikan' : ($app['kelayakan'] === 'tidak_layak' ? 'Belum Layak Direkomendasikan' : 'Belum Ada Rekomendasi'); ?>
                             </small>
                         <?php else: ?>
                             -
                         <?php endif; ?>
                     </td>
                     <td>
-                    <button class="btn btn-sm btn-info"
+                    <button class="btn btn-sm btn-outline-info"
                             onclick="showDetail(<?php echo htmlspecialchars(json_encode($app), ENT_QUOTES, 'UTF-8'); ?>)">
-                            <i class="fas fa-eye"></i>
+                            <i class="fas fa-eye me-1"></i>Lihat
                         </button>
                     </td>
                     <td>
-                        <button class="btn btn-sm btn-warning"
-                            onclick="editApplication(<?php echo (int) $app['id']; ?>, <?php echo json_encode($app['status']); ?>)">
-                            <i class="fas fa-edit"></i>
-                        </button>
                         <form method="POST" class="d-inline" onsubmit="return confirm('Hapus pengajuan ini?')">
                             <input type="hidden" name="id" value="<?php echo (int) $app['id']; ?>">
-                            <button type="submit" name="delete_application" class="btn btn-sm btn-danger">
-                                <i class="fas fa-trash"></i>
+                            <button type="submit" name="delete_application" class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-trash me-1"></i>Hapus
                             </button>
                         </form>
                     </td>
@@ -177,33 +210,6 @@ function statusLabel($status)
                 <?php endforeach; ?>
             </tbody>
         </table>
-    </div>
-
-    <div class="modal fade" id="editApplicationModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Ubah Status Pengajuan</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form method="POST">
-                    <div class="modal-body">
-                        <input type="hidden" name="id" id="edit_id">
-                        <div class="mb-3">
-                            <label>Status</label>
-                            <select name="status" id="edit_status" class="form-control">
-                                <option value="pending">Menunggu</option>
-                                <option value="verified">Terverifikasi</option>
-                                <option value="accepted">Disetujui</option>
-                                <option value="rejected">Ditolak</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" name="update_application" class="btn btn-primary">Simpan</button>
-                    </div>
-                </form>
             </div>
         </div>
     </div>
@@ -242,13 +248,6 @@ function statusLabel($status)
         $(document).ready(function() {
             $('#applicationsTable').DataTable();
         });
-
-        function editApplication(id, status) {
-            $('#edit_id').val(id);
-            $('#edit_status').val(status);
-            const modal = new bootstrap.Modal(document.getElementById('editApplicationModal'));
-            modal.show();
-        }
 
         function escapeHtml(value) {
             return String(value)
@@ -298,9 +297,10 @@ function statusLabel($status)
 
             const statusMap = {
                 pending: 'Menunggu',
-                verified: 'Terverifikasi',
-                accepted: 'Disetujui',
-                rejected: 'Ditolak',
+                verified: 'Siap Validasi Final',
+                document_rejected: 'Ditolak Dokumen',
+                accepted: 'Diterima CU',
+                rejected: 'Ditolak CU',
             };
 
             const detailRows = [
@@ -310,7 +310,7 @@ function statusLabel($status)
                 ['Jenis', app.jenis_kredit],
                 ['Jumlah', 'Rp ' + Number(app.jumlah_pinjaman).toLocaleString('id-ID')],
                 ['Status', statusMap[app.status] || app.status],
-                ['SAW', app.skor_terbobot !== null ? Number(app.persentase_saw).toFixed(2) + '% - ' + (app.kelayakan === 'layak' ? 'Layak' : 'Tidak Layak') : '-'],
+                ['Rekomendasi Sistem', app.skor_terbobot !== null ? Number(app.persentase_saw).toFixed(2) + '% - ' + (app.kelayakan === 'layak' ? 'Layak Direkomendasikan' : 'Belum Layak Direkomendasikan') : '-'],
             ];
 
             if (app.jenis_kredit === 'KTA') {

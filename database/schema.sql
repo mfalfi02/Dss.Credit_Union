@@ -68,7 +68,7 @@ CREATE TABLE pengajuan (
     jenis_kredit ENUM('KTA', 'KUR') NOT NULL,
     jumlah_pinjaman DECIMAL(15,2) NOT NULL,
     detail_pinjaman JSON NULL,
-    status ENUM('pending', 'verified', 'accepted', 'rejected') NOT NULL DEFAULT 'pending',
+    status ENUM('pending', 'verified', 'document_rejected', 'accepted', 'rejected') NOT NULL DEFAULT 'pending',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),

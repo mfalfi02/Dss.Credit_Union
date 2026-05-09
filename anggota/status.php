@@ -38,56 +38,40 @@ function summarize_status_detail($detailJson, $jenisKredit) {
         return '-';
     }
 
+    $parts = [];
+    $addPart = static function (array &$parts, $value): void {
+        if ($value === null || $value === '' || $value === '-') {
+            return;
+        }
+        $parts[] = htmlspecialchars((string) $value);
+    };
+
     if ($jenisKredit === 'KTA') {
-        $items = [];
-        if (!empty($detail['tujuan_pinjaman'])) {
-            $items[] = 'Tujuan: ' . htmlspecialchars($detail['tujuan_pinjaman']);
-        }
-        if (!empty($detail['status_pekerjaan_asli'])) {
-            $items[] = 'Status Pekerjaan: ' . htmlspecialchars($detail['status_pekerjaan_asli']);
-        }
-        if (!empty($detail['status_pekerjaan_custom'])) {
-            $items[] = 'Keterangan: ' . htmlspecialchars($detail['status_pekerjaan_custom']);
-        }
+        $addPart($parts, $detail['tujuan_pinjaman'] ?? '');
+        $addPart($parts, $detail['status_pekerjaan_asli'] ?? '');
         if (($detail['status_pekerjaan_asli'] ?? '') === 'Pelajar/Mahasiswa') {
-            $items[] = 'Tanggungan: ' . (int) ($detail['jumlah_tanggungan'] ?? 0);
+            $addPart($parts, 'Tanggungan ' . (int) ($detail['jumlah_tanggungan'] ?? 0));
         } else {
-            if (!empty($detail['status_pekerjaan'])) {
-                $items[] = 'Pekerjaan: ' . htmlspecialchars($detail['status_pekerjaan']);
-            }
-            if (!empty($detail['nama_tempat_kerja'])) {
-                $items[] = 'Tempat Kerja: ' . htmlspecialchars($detail['nama_tempat_kerja']);
-            }
-            if (!empty($detail['lama_bekerja_bulan'])) {
-                $items[] = 'Lama Bekerja: ' . (int) $detail['lama_bekerja_bulan'] . ' bulan';
-            }
+            $addPart($parts, $detail['nama_tempat_kerja'] ?? '');
+            $addPart($parts, !empty($detail['lama_bekerja_bulan']) ? (int) $detail['lama_bekerja_bulan'] . ' bulan kerja' : '');
         }
-        if (!empty($detail['penghasilan_bulanan'])) {
-            $items[] = 'Penghasilan: Rp ' . number_format((float) $detail['penghasilan_bulanan'], 0, ',', '.');
-        }
-        return $items ? implode('<br>', $items) : '-';
+        $addPart($parts, !empty($detail['penghasilan_bulanan']) ? 'Rp ' . number_format((float) $detail['penghasilan_bulanan'], 0, ',', '.') : '');
+        return $parts ? implode(' • ', array_slice($parts, 0, 3)) : '-';
     }
 
-    $items = [];
-    if (!empty($detail['nama_usaha'])) {
-        $items[] = 'Usaha: ' . htmlspecialchars($detail['nama_usaha']);
-    }
-    if (!empty($detail['bidang_usaha'])) {
-        $items[] = 'Bidang: ' . htmlspecialchars($detail['bidang_usaha']);
-    }
-    if (!empty($detail['omzet_bulanan'])) {
-        $items[] = 'Omzet: Rp ' . number_format((float) $detail['omzet_bulanan'], 0, ',', '.');
-    }
-    if (!empty($detail['laba_bersih_bulanan'])) {
-        $items[] = 'Laba: Rp ' . number_format((float) $detail['laba_bersih_bulanan'], 0, ',', '.');
-    }
+    $addPart($parts, $detail['nama_usaha'] ?? '');
+    $addPart($parts, $detail['bidang_usaha'] ?? '');
+    $addPart($parts, !empty($detail['omzet_bulanan']) ? 'Omzet Rp ' . number_format((float) $detail['omzet_bulanan'], 0, ',', '.') : '');
+    $addPart($parts, !empty($detail['laba_bersih_bulanan']) ? 'Laba Rp ' . number_format((float) $detail['laba_bersih_bulanan'], 0, ',', '.') : '');
 
-    return $items ? implode('<br>', $items) : '-';
+    return $parts ? implode(' • ', array_slice($parts, 0, 3)) : '-';
 }
 
 function eligibilityLabel($value)
 {
-    return $value === 'layak' ? 'Layak' : 'Tidak Layak';
+    return $value === 'layak'
+        ? 'Memenuhi Batas Minimum'
+        : 'Belum Memenuhi Batas Minimum';
 }
 
 function statusLabel($status)
@@ -126,7 +110,10 @@ function statusLabel($status)
                 <h2 class="mb-1">Status Pengajuan</h2>
                 <p class="text-muted mb-0">Pantau status pengajuan KTA dan KUR milikmu.</p>
             </div>
-            <a href="submit_application.php" class="btn btn-info">Ajukan Baru</a>
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="dashboard.php" class="btn btn-outline-secondary">Kembali ke Dashboard</a>
+                <a href="submit_application.php" class="btn btn-info">Ajukan Baru</a>
+            </div>
         </div>
 
         <?php if (!$member): ?>
@@ -148,7 +135,7 @@ function statusLabel($status)
                     <table id="applicationsTable" class="table table-striped align-middle mb-0">
                         <thead>
                         <tr>
-                            <th>ID</th>
+                            <th>No</th>
                             <th>Jenis Kredit</th>
                             <th>Jumlah Pinjaman</th>
                             <th>Detail Singkat</th>
@@ -161,16 +148,20 @@ function statusLabel($status)
                         </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($applications as $app): ?>
+                            <?php $no = 1; foreach ($applications as $app): ?>
                             <tr>
-                                <td><?php echo (int) $app['id']; ?></td>
+                                <td><?php echo $no++; ?></td>
                                 <td>
                                     <span class="badge text-bg-<?php echo $app['jenis_kredit'] === 'KTA' ? 'primary' : 'success'; ?>">
                                         <?php echo htmlspecialchars($app['jenis_kredit']); ?>
                                     </span>
                                 </td>
                                 <td>Rp <?php echo number_format((float) $app['jumlah_pinjaman'], 0, ',', '.'); ?></td>
-                                <td><?php echo summarize_status_detail($app['detail_pinjaman'], $app['jenis_kredit']); ?></td>
+                                <td class="small text-muted" style="max-width: 320px;">
+                                    <span class="d-inline-block text-truncate w-100" title="<?php echo htmlspecialchars(summarize_status_detail($app['detail_pinjaman'], $app['jenis_kredit'])); ?>">
+                                        <?php echo summarize_status_detail($app['detail_pinjaman'], $app['jenis_kredit']); ?>
+                                    </span>
+                                </td>
                                 <td>
                                     <span class="badge text-bg-<?php
                                         echo $app['status'] === 'pending' ? 'warning' :
@@ -185,7 +176,7 @@ function statusLabel($status)
                                 </td>
                                 <td>
                                     <?php if ($app['kelayakan']): ?>
-                                        <span class="badge text-bg-<?php echo $app['kelayakan'] === 'layak' ? 'success' : 'danger'; ?>">
+                                        <span class="badge text-bg-<?php echo $app['kelayakan'] === 'layak' ? 'success' : 'danger'; ?> text-wrap" style="white-space: normal;">
                                             <?php echo eligibilityLabel($app['kelayakan']); ?>
                                         </span>
                                     <?php else: ?>
@@ -255,7 +246,7 @@ function statusLabel($status)
                 ['Jumlah Pinjaman', 'Rp ' + Number(app.jumlah_pinjaman).toLocaleString('id-ID')],
                 ['Status', statusMap[app.status] || app.status],
                 ['Persentase', app.persentase_saw ? Number(app.persentase_saw).toFixed(2) + '%' : '-'],
-                ['Kelayakan', app.kelayakan ? (app.kelayakan === 'layak' ? 'Layak' : 'Tidak Layak') : '-'],
+                ['Kelayakan', app.kelayakan ? (app.kelayakan === 'layak' ? 'Memenuhi Batas Minimum' : 'Belum Memenuhi Batas Minimum') : '-'],
                 ['Tanggal', new Date(app.created_at).toLocaleDateString('id-ID')],
                 ['Dokumen', app.dokumen_count + ' file'],
             ];

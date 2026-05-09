@@ -54,7 +54,7 @@ class SAWCalculator {
             "SELECT
                 COUNT(*) AS total_prev,
                 SUM(CASE WHEN status = 'accepted' THEN 1 ELSE 0 END) AS accepted_count,
-                SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) AS rejected_count,
+                SUM(CASE WHEN status IN ('rejected', 'document_rejected') THEN 1 ELSE 0 END) AS rejected_count,
                 SUM(CASE WHEN status = 'verified' THEN 1 ELSE 0 END) AS verified_count
              FROM pengajuan
              WHERE anggota_id = ? AND id < ?"
@@ -314,7 +314,7 @@ class SAWCalculator {
         $sql = "SELECT p.id, p.anggota_id, a.nama, p.jenis_kredit
                 FROM pengajuan p
                 JOIN anggota a ON p.anggota_id = a.id
-                WHERE p.status IN ('pending', 'verified', 'accepted') AND p.jenis_kredit = ?
+                WHERE p.status IN ('verified', 'accepted') AND p.jenis_kredit = ?
                 ORDER BY p.created_at DESC";
         $stmt = $this->conn->prepare($sql);
         $stmt->bind_param('s', $jenis_kredit);
@@ -327,7 +327,7 @@ class SAWCalculator {
         $sql = "SELECT n.kriteria_id, MAX(n.nilai) AS max_nilai, MIN(n.nilai) AS min_nilai
                 FROM penilaian n
                 JOIN pengajuan p ON p.id = n.pengajuan_id
-                WHERE p.status IN ('pending', 'verified', 'accepted') AND p.jenis_kredit = ?
+                WHERE p.status IN ('verified', 'accepted') AND p.jenis_kredit = ?
                 GROUP BY n.kriteria_id";
         $stmt = $this->conn->prepare($sql);
         $stmt->bind_param('s', $jenis_kredit);

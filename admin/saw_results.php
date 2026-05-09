@@ -5,6 +5,7 @@ checkLogin();
 checkRole('admin');
 require_once '../config/database.php';
 require_once '../function/saw.php';
+require_once 'ui.php';
 
 $conn = getDBConnection();
 $saw = new SAWCalculator($conn);
@@ -12,7 +13,7 @@ $saw = new SAWCalculator($conn);
 $activeTypes = $conn->query(
     "SELECT DISTINCT jenis_kredit
      FROM pengajuan
-     WHERE status IN ('pending', 'verified', 'accepted')"
+     WHERE status = 'accepted'"
 );
 if ($activeTypes) {
     while ($row = $activeTypes->fetch_assoc()) {
@@ -35,12 +36,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['recalculate_saw'])) {
 
 $result = $conn->query(
     'SELECT h.pengajuan_id, h.jenis_kredit, h.skor_normalisasi, h.skor_terbobot, h.persentase_saw, h.kelayakan, h.ranking,
-            p.jumlah_pinjaman, p.status, p.created_at,
+            p.jumlah_pinjaman, p.created_at, p.anggota_id,
             a.nama, u.username
      FROM hasil_saw h
      JOIN pengajuan p ON h.pengajuan_id = p.id
      JOIN anggota a ON p.anggota_id = a.id
      JOIN users u ON a.user_id = u.id
+     WHERE p.status = \'accepted\'
      ORDER BY h.jenis_kredit ASC, h.ranking ASC'
 );
 $rankings = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
@@ -50,6 +52,41 @@ foreach ($rankings as $row) {
     $grouped[$row['jenis_kredit']][] = $row;
 }
 
+$memberSummaries = ['KTA' => [], 'KUR' => []];
+foreach ($grouped as $type => $rows) {
+    $seen = [];
+    foreach ($rows as $row) {
+        $anggotaKey = (int) ($row['anggota_id'] ?? 0);
+        if (!isset($seen[$anggotaKey])) {
+            $seen[$anggotaKey] = [
+                'nama' => $row['nama'],
+                'username' => $row['username'],
+                'anggota_id' => (int) $row['anggota_id'],
+                'jumlah_pengajuan' => 0,
+                'pengajuan_terbaik' => $row['pengajuan_id'],
+                'ranking_terbaik' => $row['ranking'],
+                'persentase_terbaik' => $row['persentase_saw'],
+                'kelayakan_terbaik' => $row['kelayakan'],
+                'jumlah_pinjaman_terbaik' => $row['jumlah_pinjaman'],
+            ];
+        }
+
+        $seen[$anggotaKey]['jumlah_pengajuan']++;
+        if ((float) $row['persentase_saw'] > (float) $seen[$anggotaKey]['persentase_terbaik']) {
+            $seen[$anggotaKey]['pengajuan_terbaik'] = $row['pengajuan_id'];
+            $seen[$anggotaKey]['ranking_terbaik'] = $row['ranking'];
+            $seen[$anggotaKey]['persentase_terbaik'] = $row['persentase_saw'];
+            $seen[$anggotaKey]['kelayakan_terbaik'] = $row['kelayakan'];
+            $seen[$anggotaKey]['jumlah_pinjaman_terbaik'] = $row['jumlah_pinjaman'];
+        }
+    }
+
+    $memberSummaries[$type] = array_values($seen);
+    usort($memberSummaries[$type], static function ($a, $b) {
+        return ($b['persentase_terbaik'] <=> $a['persentase_terbaik']) ?: ($a['nama'] <=> $b['nama']);
+    });
+}
+
 function typeBadge($type)
 {
     return $type === 'KTA' ? 'primary' : 'success';
@@ -57,18 +94,9 @@ function typeBadge($type)
 
 function eligibilityLabel($value)
 {
-    return $value === 'layak' ? 'Layak' : 'Tidak Layak';
-}
-
-function statusLabel($status)
-{
-    return match ($status) {
-        'pending' => 'Menunggu',
-        'verified' => 'Terverifikasi',
-        'accepted' => 'Disetujui',
-        'rejected' => 'Ditolak',
-        default => ucfirst((string) $status),
-    };
+    return $value === 'layak'
+        ? 'Layak Direkomendasikan'
+        : 'Belum Layak Direkomendasikan';
 }
 ?>
 <!DOCTYPE html>
@@ -80,6 +108,7 @@ function statusLabel($status)
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+    <?php echo adminPageStyles(); ?>
     <style>
         body {
             background: linear-gradient(180deg, #eff6ff 0%, #f8fafc 100%);
@@ -99,46 +128,19 @@ function statusLabel($status)
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="dashboard.php">Dasbor Admin</a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="../proses/logout.php">Logout</a>
-            </div>
-        </div>
-    </nav>
+    <?php echo renderAdminHeader('saw', 'Hasil SAW', 'Ranking pinjaman KTA dan KUR dipisah agar mudah dibaca.', [
+        ['label' => 'Hitung Ulang KTA', 'class' => 'btn btn-light', 'href' => '#kta'],
+        ['label' => 'Hitung Ulang KUR', 'class' => 'btn btn-outline-light', 'href' => '#kur'],
+    ]); ?>
 
-    <div class="container mt-4">
-        <div class="card hero mb-4">
-            <div class="card-body p-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-                <div>
-                    <h2 class="mb-1">Hasil SAW</h2>
-                    <p class="mb-0 text-white-50">Hasil ranking KTA dan KUR dipisah agar mudah dibaca.</p>
-                </div>
-                <div class="d-flex gap-2">
-                    <form method="POST" class="d-inline">
-                        <input type="hidden" name="jenis_kredit" value="KTA">
-                        <button type="submit" name="recalculate_saw" class="btn btn-light">
-                            <i class="fas fa-sync"></i> Hitung Ulang KTA
-                        </button>
-                    </form>
-                    <form method="POST" class="d-inline">
-                        <input type="hidden" name="jenis_kredit" value="KUR">
-                        <button type="submit" name="recalculate_saw" class="btn btn-outline-light">
-                            <i class="fas fa-sync"></i> Hitung Ulang KUR
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
+    <div class="container admin-shell">
         <?php foreach (['KTA', 'KUR'] as $type): ?>
-            <div class="card section-card mb-4">
+            <div class="card admin-card mb-4" id="<?php echo strtolower($type); ?>">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div>
                             <h4 class="mb-1">Peringkat <?php echo $type; ?></h4>
-                            <p class="text-muted mb-0">Pengajuan yang sudah diverifikasi untuk jenis <?php echo $type; ?>.</p>
+                        <p class="text-muted mb-0">Pengajuan yang sudah diterima CU untuk jenis <?php echo $type; ?>.</p>
                         </div>
                         <span class="badge bg-<?php echo typeBadge($type); ?>"><?php echo $type; ?></span>
                     </div>
@@ -150,13 +152,11 @@ function statusLabel($status)
                                     <th>Peringkat</th>
                                     <th>ID Pengajuan</th>
                                     <th>Anggota</th>
-                                    <th>Nama Pengguna</th>
                                     <th>Jumlah</th>
                                     <th>Persentase</th>
-                                    <th>Kelayakan</th>
+                                    <th>Rekomendasi Sistem</th>
                                     <th>Normalisasi</th>
                                     <th>Terbobot</th>
-                                    <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -165,21 +165,15 @@ function statusLabel($status)
                                         <td><span class="badge text-bg-primary">#<?php echo (int) $rank['ranking']; ?></span></td>
                                         <td><?php echo (int) $rank['pengajuan_id']; ?></td>
                                         <td><?php echo htmlspecialchars($rank['nama']); ?></td>
-                                        <td><?php echo htmlspecialchars($rank['username']); ?></td>
                                         <td>Rp <?php echo number_format((float) $rank['jumlah_pinjaman'], 0, ',', '.'); ?></td>
                                         <td><?php echo number_format((float) $rank['persentase_saw'], 2); ?>%</td>
                                         <td>
-                                            <span class="badge text-bg-<?php echo $rank['kelayakan'] === 'layak' ? 'success' : 'danger'; ?>">
+                                            <span class="badge text-bg-<?php echo $rank['kelayakan'] === 'layak' ? 'success' : 'danger'; ?> text-wrap" style="white-space: normal;">
                                                 <?php echo eligibilityLabel($rank['kelayakan'] ?? ''); ?>
                                             </span>
                                         </td>
                                         <td><?php echo number_format((float) $rank['skor_normalisasi'], 4); ?></td>
                                         <td><?php echo number_format((float) $rank['skor_terbobot'], 4); ?></td>
-                                        <td>
-                                            <span class="badge text-bg-<?php echo $rank['status'] === 'verified' ? 'info' : 'secondary'; ?>">
-                                                <?php echo statusLabel($rank['status']); ?>
-                                            </span>
-                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>
@@ -190,6 +184,52 @@ function statusLabel($status)
                             Belum ada hasil SAW untuk <?php echo $type; ?>.
                         </div>
                     <?php endif; ?>
+                </div>
+            </div>
+
+            <div class="card admin-card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h4 class="mb-1">Ringkasan Per Anggota - <?php echo $type; ?></h4>
+                            <p class="text-muted mb-0">Menampilkan pengajuan terbaik dari setiap anggota pada jenis pinjaman yang sama.</p>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                            <table class="table table-striped align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Ranking</th>
+                                        <th>Nama Anggota</th>
+                                        <th>Jumlah Pengajuan</th>
+                                        <th>Pengajuan Terbaik</th>
+                                        <th>Persentase Terbaik</th>
+                                        <th>Rekomendasi Sistem</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($memberSummaries[$type] as $summary): ?>
+                                        <tr>
+                                            <td><span class="badge text-bg-primary">#<?php echo (int) $summary['ranking_terbaik']; ?></span></td>
+                                            <td><?php echo htmlspecialchars($summary['nama']); ?></td>
+                                            <td><?php echo (int) $summary['jumlah_pengajuan']; ?></td>
+                                            <td>#<?php echo (int) $summary['pengajuan_terbaik']; ?></td>
+                                            <td><?php echo number_format((float) $summary['persentase_terbaik'], 2); ?>%</td>
+                                            <td>
+                                                <span class="badge text-bg-<?php echo $summary['kelayakan_terbaik'] === 'layak' ? 'success' : 'danger'; ?> text-wrap" style="white-space: normal;">
+                                                    <?php echo eligibilityLabel($summary['kelayakan_terbaik'] ?? ''); ?>
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                    <?php if (empty($memberSummaries[$type])): ?>
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-4">Belum ada ringkasan anggota untuk <?php echo $type; ?>.</td>
+                                    </tr>
+                                    <?php endif; ?>
+                                </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         <?php endforeach; ?>

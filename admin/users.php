@@ -4,6 +4,7 @@ require_once '../function/auth.php';
 checkLogin();
 checkRole('admin');
 require_once '../config/database.php';
+require_once 'ui.php';
 
 $conn = getDBConnection();
 
@@ -55,12 +56,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$roles = $conn->query('SELECT * FROM roles ORDER BY id')->fetch_all(MYSQLI_ASSOC);
+$roles = $conn->query("SELECT * FROM roles WHERE name IN ('admin', 'petugas') ORDER BY id")->fetch_all(MYSQLI_ASSOC);
 $result = $conn->query(
-    'SELECT u.id, u.username, u.role_id, r.name AS role_name, u.created_at
+    "SELECT u.id, u.username, u.role_id, r.name AS role_name, u.created_at
      FROM users u
      JOIN roles r ON u.role_id = r.id
-     ORDER BY u.id'
+     WHERE r.name IN ('admin', 'petugas')
+     ORDER BY u.id"
 );
 $users = $result->fetch_all(MYSQLI_ASSOC);
 ?>
@@ -69,29 +71,28 @@ $users = $result->fetch_all(MYSQLI_ASSOC);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kelola Pengguna - Admin</title>
+    <title>Kelola Staf - Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+    <?php echo adminPageStyles(); ?>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="dashboard.php">Dasbor Admin</a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="../proses/logout.php">Logout</a>
-            </div>
-        </div>
-    </nav>
-    <div class="container mt-4">
+    <?php echo renderAdminHeader('users', 'Kelola Staf', 'Data akun sistem untuk admin dan petugas.'); ?>
+    <div class="container admin-shell">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="mb-0">Kelola Pengguna</h2>
+            <div>
+                <h2 class="mb-1">Kelola Staf</h2>
+                <p class="text-muted mb-0">Akun staf yang bisa dipakai untuk admin dan petugas.</p>
+            </div>
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
-                <i class="fas fa-plus"></i> Tambah Pengguna
+                <i class="fas fa-plus"></i> Tambah Staf
             </button>
         </div>
 
-        <table id="usersTable" class="table table-striped">
+        <div class="card admin-card">
+            <div class="card-body">
+        <table id="usersTable" class="table table-striped mb-0">
             <thead>
                 <tr>
                     <th>ID</th>
@@ -109,14 +110,14 @@ $users = $result->fetch_all(MYSQLI_ASSOC);
                     <td><?php echo htmlspecialchars($u['role_name']); ?></td>
                     <td><?php echo htmlspecialchars($u['created_at']); ?></td>
                     <td>
-                        <button class="btn btn-sm btn-warning"
+                        <button class="btn btn-sm btn-outline-warning"
                             onclick="editUser(<?php echo (int) $u['id']; ?>, <?php echo json_encode($u['username']); ?>, <?php echo (int) $u['role_id']; ?>)">
-                            <i class="fas fa-edit"></i>
+                            <i class="fas fa-pen-to-square me-1"></i>Edit
                         </button>
                         <form method="POST" class="d-inline" onsubmit="return confirm('Hapus pengguna ini?')">
                             <input type="hidden" name="id" value="<?php echo (int) $u['id']; ?>">
-                            <button type="submit" name="delete_user" class="btn btn-sm btn-danger">
-                                <i class="fas fa-trash"></i>
+                            <button type="submit" name="delete_user" class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-trash me-1"></i>Hapus
                             </button>
                         </form>
                     </td>
@@ -124,6 +125,8 @@ $users = $result->fetch_all(MYSQLI_ASSOC);
                 <?php endforeach; ?>
             </tbody>
         </table>
+            </div>
+        </div>
     </div>
 
     <div class="modal fade" id="addUserModal" tabindex="-1">
@@ -165,7 +168,7 @@ $users = $result->fetch_all(MYSQLI_ASSOC);
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Ubah Pengguna</h5>
+                    <h5 class="modal-title">Ubah Staf</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form method="POST">
