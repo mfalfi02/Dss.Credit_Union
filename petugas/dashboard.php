@@ -192,6 +192,38 @@ function statusLabel(string $status): string
         .table td {
             vertical-align: middle;
         }
+
+        .dashboard-grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        @media (max-width: 991.98px) {
+            .hero .card-body {
+                padding: 1.25rem;
+            }
+
+            .action-card,
+            .task-card {
+                border-radius: 1rem;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .hero-badge {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .action-card .btn,
+            .task-card .btn {
+                width: 100%;
+            }
+
+            .table {
+                min-width: 720px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -227,7 +259,7 @@ function statusLabel(string $status): string
         </section>
 
         <section class="row g-4 mb-4">
-            <div class="col-lg-6">
+            <div class="col-12 col-lg-6">
                 <div class="action-card p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <div class="metric-icon"><i class="fas fa-file-circle-check"></i></div>
@@ -240,7 +272,7 @@ function statusLabel(string $status): string
                     </a>
                 </div>
             </div>
-            <div class="col-lg-6">
+            <div class="col-12 col-lg-6">
                 <div class="action-card p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <div class="metric-icon"><i class="fas fa-ranking-star"></i></div>

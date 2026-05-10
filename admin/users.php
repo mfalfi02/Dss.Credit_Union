@@ -99,7 +99,7 @@ if (isset($_GET['success'])) {
         <?php if ($successMessage !== ''): ?>
             <div class="alert alert-success border-0 shadow-sm mb-3"><?php echo htmlspecialchars($successMessage); ?></div>
         <?php endif; ?>
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
             <div>
                 <h2 class="mb-1">Kelola Staf</h2>
                 <p class="text-muted mb-0">Akun staf yang bisa dipakai untuk admin dan petugas.</p>
@@ -111,42 +111,46 @@ if (isset($_GET['success'])) {
 
         <div class="card admin-card">
             <div class="card-body">
-        <table id="usersTable" class="table table-striped mb-0">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Nama Pengguna</th>
-                    <th>Peran</th>
-                    <th>Dibuat</th>
-                    <th>Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($users as $u): ?>
-                <tr>
-                    <td><?php echo (int) $u['id']; ?></td>
-                    <td><?php echo htmlspecialchars($u['username']); ?></td>
-                    <td><?php echo htmlspecialchars($u['role_name']); ?></td>
-                    <td><?php echo htmlspecialchars($u['created_at']); ?></td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-warning"
-                            type="button"
-                            data-user-id="<?php echo (int) $u['id']; ?>"
-                            data-username="<?php echo htmlspecialchars($u['username'], ENT_QUOTES, 'UTF-8'); ?>"
-                            data-role-id="<?php echo (int) $u['role_id']; ?>">
-                            <i class="fas fa-pen-to-square me-1"></i>Edit
-                        </button>
-                        <form method="POST" class="d-inline" onsubmit="return confirm('Hapus pengguna ini?')">
-                            <input type="hidden" name="id" value="<?php echo (int) $u['id']; ?>">
-                            <button type="submit" name="delete_user" class="btn btn-sm btn-outline-danger">
-                                <i class="fas fa-trash me-1"></i>Hapus
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+                <div class="table-responsive">
+                    <table id="usersTable" class="table table-striped mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nama Pengguna</th>
+                                <th>Peran</th>
+                                <th>Dibuat</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($users as $u): ?>
+                            <tr>
+                                <td><?php echo (int) $u['id']; ?></td>
+                                <td><?php echo htmlspecialchars($u['username']); ?></td>
+                                <td><?php echo htmlspecialchars($u['role_name']); ?></td>
+                                <td><?php echo htmlspecialchars($u['created_at']); ?></td>
+                                <td>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <button class="btn btn-sm btn-outline-warning"
+                                            type="button"
+                                            data-user-id="<?php echo (int) $u['id']; ?>"
+                                            data-username="<?php echo htmlspecialchars($u['username'], ENT_QUOTES, 'UTF-8'); ?>"
+                                            data-role-id="<?php echo (int) $u['role_id']; ?>">
+                                            <i class="fas fa-pen-to-square me-1"></i>Edit
+                                        </button>
+                                        <form method="POST" class="d-inline" onsubmit="return confirm('Hapus pengguna ini?')">
+                                            <input type="hidden" name="id" value="<?php echo (int) $u['id']; ?>">
+                                            <button type="submit" name="delete_user" class="btn btn-sm btn-outline-danger">
+                                                <i class="fas fa-trash me-1"></i>Hapus
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>

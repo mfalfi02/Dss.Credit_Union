@@ -119,6 +119,39 @@ if (isset($_SESSION['user_id'])) {
             color: #0f172a;
             font-weight: 800;
         }
+
+        .dashboard-shell {
+            gap: 1rem;
+        }
+
+        @media (max-width: 991.98px) {
+            .hero-card .card-body {
+                padding: 1.25rem;
+            }
+
+            .choice-card .card-body,
+            .status-card .card-body {
+                padding: 1.25rem;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .hero-badge {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .choice-card .btn,
+            .status-card .btn {
+                width: 100%;
+            }
+
+            .choice-card .d-flex,
+            .status-card .d-flex {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
     </style>
 </head>
 <body>
@@ -158,8 +191,8 @@ if (isset($_SESSION['user_id'])) {
             </div>
         </section>
 
-        <section class="row g-4 mb-4">
-            <div class="col-lg-8">
+        <section class="row g-4 mb-4 dashboard-shell">
+            <div class="col-12 col-lg-8">
                 <div class="card choice-card h-100">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-start justify-content-between mb-3">
@@ -176,7 +209,7 @@ if (isset($_SESSION['user_id'])) {
                     </div>
                 </div>
             </div>
-            <div class="col-lg-4">
+            <div class="col-12 col-lg-4">
                 <div class="card choice-card h-100">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-start justify-content-between mb-3">

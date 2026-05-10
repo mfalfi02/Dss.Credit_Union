@@ -10,6 +10,7 @@ if (!function_exists('adminPageStyles')) {
     }
     .admin-shell {
         min-height: 100vh;
+        width: min(100% - 1rem, 1440px);
     }
     .admin-topbar {
         background: linear-gradient(135deg, #1d4ed8 0%, #0f766e 100%);
@@ -30,6 +31,14 @@ if (!function_exists('adminPageStyles')) {
         border-radius: 1rem;
         box-shadow: 0 10px 25px rgba(15, 23, 42, .06);
     }
+    .admin-card .table-responsive {
+        border-radius: 0.75rem;
+    }
+    .admin-card .card-body,
+    .metric-card .card-body,
+    .admin-hero .card-body {
+        padding: clamp(1rem, 1.8vw, 1.5rem);
+    }
     .admin-section-title {
         letter-spacing: -.01em;
     }
@@ -37,9 +46,54 @@ if (!function_exists('adminPageStyles')) {
         border: 0;
         box-shadow: 0 12px 30px rgba(15, 23, 42, .08);
         border-radius: 1rem;
+        min-height: 100%;
     }
     .table thead th {
         white-space: nowrap;
+    }
+    .table td,
+    .table th {
+        vertical-align: middle;
+    }
+    .modal-dialog {
+        margin: 1rem auto;
+    }
+    .modal-content {
+        border: 0;
+        border-radius: 1rem;
+    }
+    .table-responsive {
+        -webkit-overflow-scrolling: touch;
+    }
+    @media (max-width: 991.98px) {
+        .admin-shell {
+            width: min(100% - 0.75rem, 1440px);
+        }
+    }
+    @media (max-width: 575.98px) {
+        .admin-shell {
+            width: min(100% - 0.5rem, 1440px);
+        }
+        .admin-card .card-body,
+        .metric-card .card-body,
+        .admin-hero .card-body {
+            padding: 1rem;
+        }
+        .d-flex.justify-content-between.align-items-center.mb-3 {
+            flex-direction: column;
+            align-items: stretch !important;
+            gap: .75rem;
+        }
+        .d-flex.justify-content-between.align-items-center.mb-3 .btn {
+            width: 100%;
+        }
+        .d-flex.gap-2.flex-wrap {
+            width: 100%;
+        }
+        .d-flex.gap-2.flex-wrap .btn,
+        .d-flex.gap-2.flex-wrap .badge {
+            flex: 1 1 auto;
+        }
     }
     @media print {
         .no-print {

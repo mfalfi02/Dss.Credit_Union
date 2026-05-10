@@ -83,6 +83,10 @@ function criterionTargetClass(string $target): string
             border-radius: 1rem;
         }
 
+        .criteria-card .card-body {
+            padding: clamp(1rem, 2vw, 1.5rem);
+        }
+
         .criteria-table thead th {
             background: #f8fafc;
             color: #475569;
@@ -105,12 +109,36 @@ function criterionTargetClass(string $target): string
             border-radius: 1rem;
             background: #f8fafc;
         }
+
+        @media (max-width: 767.98px) {
+            .criteria-page-header {
+                flex-direction: column;
+                align-items: flex-start !important;
+            }
+
+            .criteria-page-header .btn {
+                width: 100%;
+            }
+
+            .criteria-actions {
+                width: 100%;
+            }
+
+            .criteria-actions .btn,
+            .criteria-actions form {
+                width: 100%;
+            }
+
+            .criteria-actions form .btn {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
     <?php echo renderAdminHeader('criteria', 'Kelola Kriteria', 'Atur bobot dan jenis kriteria untuk perhitungan SAW.'); ?>
     <div class="container admin-shell">
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-3 criteria-page-header">
             <div>
                 <h2 class="mb-1">Kelola Kriteria</h2>
                 <p class="text-muted mb-0">Kelola kriteria benefit dan cost untuk KTA, KUR, atau keduanya.</p>
@@ -151,7 +179,7 @@ function criterionTargetClass(string $target): string
                                     </span>
                                 </td>
                                 <td>
-                                    <div class="d-flex gap-2">
+                                    <div class="d-flex flex-wrap gap-2 criteria-actions">
                                         <button class="btn btn-sm btn-outline-warning"
                                             data-id="<?php echo (int) $c['id']; ?>"
                                             data-nama="<?php echo htmlspecialchars($c['nama'], ENT_QUOTES); ?>"

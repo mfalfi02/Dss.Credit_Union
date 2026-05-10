@@ -125,6 +125,33 @@ function eligibilityLabel($value)
             box-shadow: 0 10px 25px rgba(15, 23, 42, .06);
             border-radius: 1rem;
         }
+
+        .saw-section-card .card-body {
+            padding: clamp(1rem, 2vw, 1.5rem);
+        }
+
+        .saw-table {
+            min-width: 760px;
+        }
+
+        @media (max-width: 991.98px) {
+            .saw-section-header {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: .75rem;
+            }
+
+            .saw-section-header .badge {
+                width: 100%;
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .saw-table {
+                min-width: 860px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -135,9 +162,9 @@ function eligibilityLabel($value)
 
     <div class="container admin-shell">
         <?php foreach (['KTA', 'KUR'] as $type): ?>
-            <div class="card admin-card mb-4" id="<?php echo strtolower($type); ?>">
+            <div class="card admin-card saw-section-card mb-4" id="<?php echo strtolower($type); ?>">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3 saw-section-header">
                         <div>
                             <h4 class="mb-1">Peringkat <?php echo $type; ?></h4>
                         <p class="text-muted mb-0">Pengajuan yang sudah diterima CU untuk jenis <?php echo $type; ?>.</p>
@@ -146,7 +173,7 @@ function eligibilityLabel($value)
                     </div>
 
                     <div class="table-responsive">
-                        <table class="table table-striped align-middle sawTable">
+                        <table class="table table-striped align-middle sawTable saw-table">
                             <thead>
                                 <tr>
                                     <th>Peringkat</th>
@@ -187,16 +214,16 @@ function eligibilityLabel($value)
                 </div>
             </div>
 
-            <div class="card admin-card mb-4">
+            <div class="card admin-card saw-section-card mb-4">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3 saw-section-header">
                         <div>
                             <h4 class="mb-1">Ringkasan Per Anggota - <?php echo $type; ?></h4>
                             <p class="text-muted mb-0">Menampilkan pengajuan terbaik dari setiap anggota pada jenis pinjaman yang sama.</p>
                         </div>
                     </div>
                     <div class="table-responsive">
-                            <table class="table table-striped align-middle">
+                            <table class="table table-striped align-middle saw-table">
                                 <thead>
                                     <tr>
                                         <th>Ranking</th>

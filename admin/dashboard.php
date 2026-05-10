@@ -72,13 +72,28 @@ function statusBadgeClass($status)
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <?php echo adminPageStyles(); ?>
+    <style>
+        .dashboard-section {
+            gap: 1rem;
+        }
+
+        @media (max-width: 575.98px) {
+            .dashboard-section .btn {
+                width: 100%;
+            }
+
+            .admin-shell .fs-3 {
+                font-size: 1.5rem !important;
+            }
+        }
+    </style>
 </head>
 <body>
     <?php echo renderAdminHeader('dashboard', 'Beranda Admin', 'Kelola data sistem.'); ?>
 
     <div class="container admin-shell pb-4">
         <div class="row g-3 mb-4">
-            <div class="col-6 col-lg-3">
+            <div class="col-12 col-sm-6 col-lg-3">
                 <div class="card metric-card h-100">
                     <div class="card-body">
                         <div class="text-muted small">Total Pengajuan</div>
@@ -87,7 +102,7 @@ function statusBadgeClass($status)
                     </div>
                 </div>
             </div>
-            <div class="col-6 col-lg-3">
+            <div class="col-12 col-sm-6 col-lg-3">
                 <div class="card metric-card h-100">
                     <div class="card-body">
                         <div class="text-muted small">Total Anggota</div>
@@ -96,7 +111,7 @@ function statusBadgeClass($status)
                     </div>
                 </div>
             </div>
-            <div class="col-6 col-lg-3">
+            <div class="col-12 col-sm-6 col-lg-3">
                 <div class="card metric-card h-100">
                     <div class="card-body">
                         <div class="text-muted small">Kriteria Aktif</div>
@@ -105,7 +120,7 @@ function statusBadgeClass($status)
                     </div>
                 </div>
             </div>
-            <div class="col-6 col-lg-3">
+            <div class="col-12 col-sm-6 col-lg-3">
                 <div class="card metric-card h-100">
                     <div class="card-body">
                         <div class="text-muted small">Hasil SAW</div>
@@ -116,8 +131,8 @@ function statusBadgeClass($status)
             </div>
         </div>
 
-        <div class="row g-3">
-            <div class="col-lg-4">
+        <div class="row g-3 dashboard-section">
+            <div class="col-12 col-xl-4">
                 <div class="card admin-card h-100">
                     <div class="card-body">
                         <h4 class="admin-section-title mb-1">Akses Cepat</h4>
@@ -133,7 +148,7 @@ function statusBadgeClass($status)
                     </div>
                 </div>
             </div>
-            <div class="col-lg-8">
+            <div class="col-12 col-xl-8">
                 <div class="card admin-card h-100">
                     <div class="card-body">
                         <?php echo renderAdminSectionCard('Pengajuan Terbaru', 'Lima pengajuan terakhir untuk memantau aktivitas sistem.', [

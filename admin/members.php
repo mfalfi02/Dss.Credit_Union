@@ -133,7 +133,7 @@ if (isset($_GET['success'])) {
         <?php if ($successMessage !== ''): ?>
             <div class="alert alert-success border-0 shadow-sm mb-3"><?php echo htmlspecialchars($successMessage); ?></div>
         <?php endif; ?>
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
             <div>
                 <h2 class="mb-1">Kelola Anggota</h2>
                 <p class="text-muted mb-0">Data akun dan biodata anggota yang mengajukan kredit.</p>
@@ -145,51 +145,55 @@ if (isset($_GET['success'])) {
 
         <div class="card admin-card">
             <div class="card-body">
-        <table id="membersTable" class="table table-striped mb-0">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Nama Pengguna</th>
-                    <th>Nama</th>
-                    <th>HP</th>
-                    <th>Email</th>
-                    <th>Dibuat</th>
-                    <th>Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($members as $m): ?>
-                <tr>
-                    <td><?php echo (int) $m['anggota_id']; ?></td>
-                    <td><?php echo htmlspecialchars($m['username']); ?></td>
-                    <td><?php echo htmlspecialchars($m['nama']); ?></td>
-                    <td><?php echo htmlspecialchars($m['no_hp']); ?></td>
-                    <td><?php echo htmlspecialchars($m['email']); ?></td>
-                    <td><?php echo htmlspecialchars($m['created_at']); ?></td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-warning"
-                            type="button"
-                            data-user-id="<?php echo (int) $m['user_id']; ?>"
-                            data-anggota-id="<?php echo (int) $m['anggota_id']; ?>"
-                            data-username="<?php echo htmlspecialchars($m['username'], ENT_QUOTES, 'UTF-8'); ?>"
-                            data-nama="<?php echo htmlspecialchars($m['nama'], ENT_QUOTES, 'UTF-8'); ?>"
-                            data-alamat="<?php echo htmlspecialchars($m['alamat'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
-                            data-no-hp="<?php echo htmlspecialchars($m['no_hp'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
-                            data-email="<?php echo htmlspecialchars($m['email'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
-                            data-tanggal-lahir="<?php echo htmlspecialchars((string) ($m['tanggal_lahir'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
-                            <i class="fas fa-pen-to-square me-1"></i>Edit
-                        </button>
-                        <form method="POST" class="d-inline" onsubmit="return confirm('Hapus anggota dan pengguna terkait?')">
-                            <input type="hidden" name="user_id" value="<?php echo (int) $m['user_id']; ?>">
-                            <button type="submit" name="delete_member" class="btn btn-sm btn-outline-danger">
-                                <i class="fas fa-trash me-1"></i>Hapus
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+                <div class="table-responsive">
+                    <table id="membersTable" class="table table-striped mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nama Pengguna</th>
+                                <th>Nama</th>
+                                <th>HP</th>
+                                <th>Email</th>
+                                <th>Dibuat</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($members as $m): ?>
+                            <tr>
+                                <td><?php echo (int) $m['anggota_id']; ?></td>
+                                <td><?php echo htmlspecialchars($m['username']); ?></td>
+                                <td><?php echo htmlspecialchars($m['nama']); ?></td>
+                                <td><?php echo htmlspecialchars($m['no_hp']); ?></td>
+                                <td><?php echo htmlspecialchars($m['email']); ?></td>
+                                <td><?php echo htmlspecialchars($m['created_at']); ?></td>
+                                <td>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <button class="btn btn-sm btn-outline-warning"
+                                            type="button"
+                                            data-user-id="<?php echo (int) $m['user_id']; ?>"
+                                            data-anggota-id="<?php echo (int) $m['anggota_id']; ?>"
+                                            data-username="<?php echo htmlspecialchars($m['username'], ENT_QUOTES, 'UTF-8'); ?>"
+                                            data-nama="<?php echo htmlspecialchars($m['nama'], ENT_QUOTES, 'UTF-8'); ?>"
+                                            data-alamat="<?php echo htmlspecialchars($m['alamat'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                            data-no-hp="<?php echo htmlspecialchars($m['no_hp'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                            data-email="<?php echo htmlspecialchars($m['email'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                            data-tanggal-lahir="<?php echo htmlspecialchars((string) ($m['tanggal_lahir'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+                                            <i class="fas fa-pen-to-square me-1"></i>Edit
+                                        </button>
+                                        <form method="POST" class="d-inline" onsubmit="return confirm('Hapus anggota dan pengguna terkait?')">
+                                            <input type="hidden" name="user_id" value="<?php echo (int) $m['user_id']; ?>">
+                                            <button type="submit" name="delete_member" class="btn btn-sm btn-outline-danger">
+                                                <i class="fas fa-trash me-1"></i>Hapus
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
