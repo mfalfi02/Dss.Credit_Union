@@ -20,6 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $conn->prepare('INSERT INTO users (username, password, role_id) VALUES (?, ?, ?)');
                 $stmt->bind_param('ssi', $username, $hashed_password, $role_id);
                 $stmt->execute();
+                header('Location: users.php?success=1');
+                exit();
             }
         } elseif (isset($_POST['edit_user'])) {
             $id = (int) ($_POST['id'] ?? 0);
@@ -38,6 +40,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt->bind_param('si', $hashed_password, $id);
                     $stmt->execute();
                 }
+                header('Location: users.php?success=2');
+                exit();
             }
         } elseif (isset($_POST['delete_user'])) {
             $id = (int) ($_POST['id'] ?? 0);
@@ -46,6 +50,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->bind_param('i', $id);
                 $stmt->execute();
             }
+            header('Location: users.php?success=3');
+            exit();
         }
 
         header('Location: users.php');
@@ -65,6 +71,16 @@ $result = $conn->query(
      ORDER BY u.id"
 );
 $users = $result->fetch_all(MYSQLI_ASSOC);
+
+$successMessage = '';
+if (isset($_GET['success'])) {
+    $successMessage = match ((string) $_GET['success']) {
+        '1' => 'Staf berhasil ditambahkan.',
+        '2' => 'Staf berhasil diperbarui.',
+        '3' => 'Staf berhasil dihapus.',
+        default => '',
+    };
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -80,6 +96,9 @@ $users = $result->fetch_all(MYSQLI_ASSOC);
 <body>
     <?php echo renderAdminHeader('users', 'Kelola Staf', 'Data akun sistem untuk admin dan petugas.'); ?>
     <div class="container admin-shell">
+        <?php if ($successMessage !== ''): ?>
+            <div class="alert alert-success border-0 shadow-sm mb-3"><?php echo htmlspecialchars($successMessage); ?></div>
+        <?php endif; ?>
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
                 <h2 class="mb-1">Kelola Staf</h2>
@@ -111,7 +130,10 @@ $users = $result->fetch_all(MYSQLI_ASSOC);
                     <td><?php echo htmlspecialchars($u['created_at']); ?></td>
                     <td>
                         <button class="btn btn-sm btn-outline-warning"
-                            onclick="editUser(<?php echo (int) $u['id']; ?>, <?php echo json_encode($u['username']); ?>, <?php echo (int) $u['role_id']; ?>)">
+                            type="button"
+                            data-user-id="<?php echo (int) $u['id']; ?>"
+                            data-username="<?php echo htmlspecialchars($u['username'], ENT_QUOTES, 'UTF-8'); ?>"
+                            data-role-id="<?php echo (int) $u['role_id']; ?>">
                             <i class="fas fa-pen-to-square me-1"></i>Edit
                         </button>
                         <form method="POST" class="d-inline" onsubmit="return confirm('Hapus pengguna ini?')">
@@ -207,6 +229,14 @@ $users = $result->fetch_all(MYSQLI_ASSOC);
     <script>
         $(document).ready(function() {
             $('#usersTable').DataTable();
+
+            $('button[data-user-id]').on('click', function() {
+                editUser(
+                    $(this).data('user-id'),
+                    $(this).data('username'),
+                    $(this).data('role-id')
+                );
+            });
         });
 
         function editUser(id, username, roleId) {

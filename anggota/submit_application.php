@@ -17,6 +17,26 @@ $selectedJenis = $_GET['jenis'] ?? '';
 if (!in_array($selectedJenis, ['KTA', 'KUR'], true)) {
     $selectedJenis = '';
 }
+
+$errorMessage = '';
+if (isset($_GET['error'])) {
+    switch ((string) $_GET['error']) {
+        case '1':
+            $errorMessage = 'Pengajuan gagal diproses. Cek koneksi database atau unggahan dokumen kamu.';
+            break;
+        case '2':
+            $errorMessage = 'Masih ada data yang belum lengkap. Silakan lengkapi form sesuai jenis pinjaman yang dipilih.';
+            break;
+        default:
+            $errorMessage = 'Pengajuan gagal diproses.';
+            break;
+    }
+}
+
+$errorFields = [];
+if (!empty($_GET['fields'])) {
+    $errorFields = array_values(array_filter(array_map('trim', explode(',', (string) $_GET['fields']))));
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -144,6 +164,26 @@ if (!in_array($selectedJenis, ['KTA', 'KUR'], true)) {
             transform: translateY(0);
             pointer-events: auto;
         }
+
+        .field-invalid .form-label {
+            color: #dc3545;
+            font-weight: 700;
+        }
+
+        .field-invalid .form-control,
+        .field-invalid .form-select,
+        .field-invalid .form-control:focus,
+        .field-invalid .form-select:focus {
+            border-color: #dc3545;
+            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.12);
+        }
+
+        .field-feedback {
+            display: block;
+            margin-top: .35rem;
+            color: #dc3545;
+            font-size: .875rem;
+        }
     </style>
 </head>
 <body>
@@ -186,6 +226,13 @@ if (!in_array($selectedJenis, ['KTA', 'KUR'], true)) {
                     Pilih salah satu kartu di bawah untuk menampilkan form pengajuan di bagian bawah.
                 </div>
             </div>
+            <?php if ($errorMessage !== '' && empty($errorFields)): ?>
+                <div class="col-12">
+                    <div class="alert alert-danger border-0 shadow-sm mb-0">
+                        <i class="fas fa-triangle-exclamation me-2"></i><?php echo htmlspecialchars($errorMessage); ?>
+                    </div>
+                </div>
+            <?php endif; ?>
             <div class="col-md-6 col-lg-4">
                 <button type="button" class="choice-card p-4 w-100 text-start <?php echo $selectedJenis === 'KTA' ? 'active' : ''; ?>" data-jenis="KTA">
                         <div class="d-flex align-items-start justify-content-between mb-3">
@@ -210,7 +257,7 @@ if (!in_array($selectedJenis, ['KTA', 'KUR'], true)) {
 
         <div class="form-section row justify-content-center <?php echo $selectedJenis !== '' ? 'is-visible' : ''; ?>" id="formSection">
             <div class="col-lg-10">
-                <form action="../proses/submit_application.php" method="POST" enctype="multipart/form-data" class="card panel-card">
+                <form action="../proses/submit_application.php" method="POST" enctype="multipart/form-data" novalidate class="card panel-card">
                     <div class="card-body p-4 p-lg-5">
                         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
                             <div>
@@ -340,7 +387,7 @@ if (!in_array($selectedJenis, ['KTA', 'KUR'], true)) {
                                     <input type="number" name="laba_bersih_bulanan_kur" class="form-control" min="0" step="0.01">
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label">Jumlah Karyawan</label>
+                                    <label class="form-label">Jumlah Karyawan (opsional)</label>
                                     <input type="number" name="jumlah_karyawan_kur" class="form-control" min="0" step="1">
                                 </div>
                                 <div class="col-md-4">
@@ -397,7 +444,7 @@ if (!in_array($selectedJenis, ['KTA', 'KUR'], true)) {
 
                             <div id="kurDocs" class="row g-3" style="display: none;">
                                 <div class="col-md-4">
-                                    <label class="form-label">KTP</label>
+                                    <label class="form-label">KTP <span class="text-danger">*</span></label>
                                     <input type="file" name="ktp" class="form-control" accept="image/*,.pdf" required>
                                 </div>
                                 <div class="col-md-4">
@@ -415,6 +462,11 @@ if (!in_array($selectedJenis, ['KTA', 'KUR'], true)) {
                                 <div class="col-md-4">
                                     <label class="form-label">Agunan Tambahan (opsional)</label>
                                     <input type="file" name="jaminan" class="form-control" accept="image/*,.pdf">
+                                </div>
+                                <div class="col-12">
+                                    <div class="alert alert-success mb-0 py-2">
+                                        Untuk KUR, minimal unggah KTP. Foto usaha, izin usaha, dan laporan usaha tetap disarankan agar verifikasi lebih lancar.
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -456,6 +508,89 @@ if (!in_array($selectedJenis, ['KTA', 'KUR'], true)) {
         const ktaKartuPelajarInput = ktaDocs.querySelector('input[name="kartu_pelajar"]');
         const ktaKartuKeluargaInput = ktaDocs.querySelector('input[name="kartu_keluarga"]');
         const choiceCards = document.querySelectorAll('.choice-card[data-jenis]');
+        const pengajuanForm = document.querySelector('form[action="../proses/submit_application.php"]');
+        const serverErrorFields = <?php echo json_encode($errorFields, JSON_UNESCAPED_UNICODE); ?>;
+
+        function getFieldWrapper(input) {
+            return input.closest('.col-md-4, .col-md-6, .col-12, .col-lg-4');
+        }
+
+        function clearFieldState(input) {
+            const wrapper = getFieldWrapper(input);
+            if (!wrapper) {
+                return;
+            }
+
+            wrapper.classList.remove('field-invalid');
+            input.classList.remove('is-invalid');
+            input.setAttribute('aria-invalid', 'false');
+
+            const label = wrapper.querySelector('label');
+            if (label) {
+                label.classList.remove('text-danger');
+            }
+
+            const feedback = wrapper.querySelector('.field-feedback');
+            if (feedback) {
+                feedback.remove();
+            }
+        }
+
+        function setFieldError(input, message) {
+            const wrapper = getFieldWrapper(input);
+            if (!wrapper) {
+                return;
+            }
+
+            wrapper.classList.add('field-invalid');
+            input.classList.add('is-invalid');
+            input.setAttribute('aria-invalid', 'true');
+
+            const label = wrapper.querySelector('label');
+            if (label) {
+                label.classList.add('text-danger');
+            }
+
+            let feedback = wrapper.querySelector('.field-feedback');
+            if (!feedback) {
+                feedback = document.createElement('div');
+                feedback.className = 'field-feedback';
+                wrapper.appendChild(feedback);
+            }
+            feedback.textContent = message || 'Wajib diisi.';
+        }
+
+        function validateRequiredFields() {
+            const requiredFields = Array.from(pengajuanForm.querySelectorAll('input[required], select[required], textarea[required]'))
+                .filter((field) => !field.disabled && field.offsetParent !== null);
+
+            let firstInvalid = null;
+
+            requiredFields.forEach((field) => {
+                clearFieldState(field);
+
+                const isEmptyFile = field.type === 'file' && (!field.files || field.files.length === 0);
+                const isEmptyText = field.type !== 'file' && String(field.value || '').trim() === '';
+                const isInvalid = isEmptyFile || isEmptyText;
+
+                if (isInvalid) {
+                    if (!firstInvalid) {
+                        firstInvalid = field;
+                    }
+
+                    const label = getFieldWrapper(field)?.querySelector('label');
+                    const labelText = label ? label.textContent.replace('*', '').trim() : 'Field ini';
+                    setFieldError(field, `${labelText} belum diisi.`);
+                }
+            });
+
+            if (firstInvalid) {
+                firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return false;
+            }
+
+            return true;
+        }
 
         function setChoiceActive(jenis) {
             choiceCards.forEach((card) => {
@@ -598,11 +733,10 @@ if (!in_array($selectedJenis, ['KTA', 'KUR'], true)) {
                 kurFields.querySelector('input[name="lama_usaha_bulan_kur"]').required = true;
                 kurFields.querySelector('input[name="omzet_bulanan_kur"]').required = true;
                 kurFields.querySelector('input[name="laba_bersih_bulanan_kur"]').required = true;
-                kurFields.querySelector('input[name="jumlah_karyawan_kur"]').required = true;
+                kurFields.querySelector('input[name="jumlah_karyawan_kur"]').required = false;
                 kurFields.querySelector('select[name="legalitas_usaha_kur"]').required = true;
                 kurFields.querySelector('input[name="tujuan_dana_kur"]').required = true;
                 kurDocInputs[0].required = true;
-                kurDocInputs[1].required = true;
             }
 
             updateStatusPekerjaanField();
@@ -622,6 +756,40 @@ if (!in_array($selectedJenis, ['KTA', 'KUR'], true)) {
                 openFormWithJenis(this.getAttribute('data-jenis'));
             });
         });
+
+        pengajuanForm.addEventListener('submit', function(event) {
+            if (!validateRequiredFields()) {
+                event.preventDefault();
+            }
+        });
+
+        pengajuanForm.querySelectorAll('input, select, textarea').forEach((field) => {
+            field.addEventListener('input', () => clearFieldState(field));
+            field.addEventListener('change', () => clearFieldState(field));
+        });
+
+        if (Array.isArray(serverErrorFields) && serverErrorFields.length > 0) {
+            const currentJenis = jenisSelect.value;
+            if (currentJenis) {
+                updateJenisInfo();
+                setChoiceActive(currentJenis);
+            }
+
+            const firstServerInvalid = serverErrorFields
+                .map((fieldName) => pengajuanForm.querySelector(`[name="${fieldName}"]`))
+                .find((field) => field && field.offsetParent !== null);
+
+            serverErrorFields.forEach((fieldName) => {
+                const field = pengajuanForm.querySelector(`[name="${fieldName}"]`);
+                if (field && field.offsetParent !== null) {
+                    setFieldError(field, 'Field ini belum diisi.');
+                }
+            });
+
+            if (firstServerInvalid) {
+                firstServerInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
     </script>
 </body>
 </html>

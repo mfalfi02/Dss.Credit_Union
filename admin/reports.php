@@ -353,6 +353,7 @@ function fetchSavedReports(mysqli $conn): array
 $filters = getReportFiltersFromRequest();
 $currentReport = fetchLoanReportData($conn, $filters['from'], $filters['to']);
 $savedReports = fetchSavedReports($conn);
+$hasSavedReports = !empty($savedReports);
 
 if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     exportLoanReportCsv($currentReport);
@@ -628,7 +629,7 @@ $resetUrl = 'reports.php';
                         <tbody>
                             <?php foreach ($savedReports as $report): ?>
                                 <?php $payload = decodeReportPayload($report['data']); ?>
-                                <tr>
+                                <tr data-report-row="1">
                                     <td><?php echo (int) $report['id']; ?></td>
                                     <td><?php echo htmlspecialchars(reportTypeLabel($report['jenis_laporan'])); ?></td>
                                     <td><?php echo htmlspecialchars($report['username']); ?></td>
@@ -646,13 +647,13 @@ $resetUrl = 'reports.php';
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
-                            <?php if (empty($savedReports)): ?>
-                                <tr>
-                                    <td colspan="8" class="text-center text-muted py-4">Belum ada arsip laporan.</td>
-                                </tr>
-                            <?php endif; ?>
                         </tbody>
                     </table>
+                    <?php if (!$hasSavedReports): ?>
+                        <div class="alert alert-info border-0 mt-3 mb-0">
+                            Belum ada arsip laporan.
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -664,10 +665,12 @@ $resetUrl = 'reports.php';
     <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
     <script>
         $(document).ready(function() {
-            $('#reportsTable').DataTable({
-                pageLength: 10,
-                order: [[6, 'desc']]
-            });
+            if ($('#reportsTable tbody tr[data-report-row="1"]').length > 0) {
+                $('#reportsTable').DataTable({
+                    pageLength: 10,
+                    order: [[6, 'desc']]
+                });
+            }
         });
     </script>
 </body>

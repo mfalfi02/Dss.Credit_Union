@@ -37,10 +37,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt = $conn->prepare('UPDATE pengajuan SET status = ?, jumlah_pinjaman = ?, detail_pinjaman = ? WHERE id = ?');
                     $stmt->bind_param('sdsi', $status, $jumlah_pinjaman, $detailJson, $id);
                     $stmt->execute();
+
+                    $aksi = sprintf(
+                        'Edit pengajuan oleh admin: status=%s, jumlah=%.2f',
+                        $status,
+                        $jumlah_pinjaman
+                    );
+                    $adminId = (int) ($_SESSION['user_id'] ?? 0);
+                    $stmt = $conn->prepare('INSERT INTO riwayat_pengajuan (pengajuan_id, aksi, dilakukan_oleh) VALUES (?, ?, ?)');
+                    $stmt->bind_param('isi', $id, $aksi, $adminId);
+                    $stmt->execute();
+
                     $conn->commit();
                     $transactionStarted = false;
 
                     $saw->calculateRanking($application['jenis_kredit']);
+                    header('Location: applications.php?success=1');
+                    exit();
                 }
             }
         } elseif (isset($_POST['delete_application'])) {
@@ -50,6 +63,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->bind_param('i', $id);
                 $stmt->execute();
             }
+            header('Location: applications.php?success=2');
+            exit();
         }
 
         header('Location: applications.php');
@@ -142,6 +157,13 @@ function statusBadgeClass($status)
 <body>
     <?php echo renderAdminHeader('applications', 'Kelola Pengajuan', 'Pantau status pinjaman, dokumen, dan hasil SAW dengan lebih cepat.'); ?>
     <div class="container admin-shell">
+        <?php if (isset($_GET['success']) && $_GET['success'] === '1'): ?>
+            <div class="alert alert-success">Pengajuan berhasil diperbarui.</div>
+        <?php elseif (isset($_GET['success']) && $_GET['success'] === '2'): ?>
+            <div class="alert alert-success">Pengajuan berhasil dihapus.</div>
+        <?php elseif (isset($_GET['error'])): ?>
+            <div class="alert alert-danger">Aksi gagal diproses. Silakan cek data input dan coba lagi.</div>
+        <?php endif; ?>
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
                 <h2 class="mb-1">Pengajuan</h2>
@@ -197,6 +219,10 @@ function statusBadgeClass($status)
                             onclick="showDetail(<?php echo htmlspecialchars(json_encode($app), ENT_QUOTES, 'UTF-8'); ?>)">
                             <i class="fas fa-eye me-1"></i>Lihat
                         </button>
+                        <button class="btn btn-sm btn-outline-warning ms-1"
+                            onclick="editApplication(<?php echo htmlspecialchars(json_encode($app), ENT_QUOTES, 'UTF-8'); ?>)">
+                            <i class="fas fa-pen-to-square me-1"></i>Edit
+                        </button>
                     </td>
                     <td>
                         <form method="POST" class="d-inline" onsubmit="return confirm('Hapus pengajuan ini?')">
@@ -210,6 +236,54 @@ function statusBadgeClass($status)
                 <?php endforeach; ?>
             </tbody>
         </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Ubah Pengajuan</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST">
+                    <div class="modal-body">
+                        <input type="hidden" name="id" id="edit_id">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">ID Pengajuan</label>
+                                <input type="text" class="form-control" id="edit_display_id" disabled>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Jenis Kredit</label>
+                                <input type="text" class="form-control" id="edit_jenis_kredit" disabled>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Nama Anggota</label>
+                                <input type="text" class="form-control" id="edit_nama" disabled>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Status</label>
+                                <select name="status" id="edit_status" class="form-select" required>
+                                    <option value="pending">Pending</option>
+                                    <option value="verified">Verified</option>
+                                    <option value="document_rejected">Document Rejected</option>
+                                    <option value="accepted">Accepted</option>
+                                    <option value="rejected">Rejected</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Jumlah Pinjaman</label>
+                                <input type="number" name="jumlah_pinjaman" id="edit_jumlah_pinjaman" class="form-control" min="1000" step="1" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" name="update_application" class="btn btn-primary">Simpan</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -256,6 +330,18 @@ function statusBadgeClass($status)
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
+        }
+
+        function editApplication(app) {
+            $('#edit_id').val(app.id);
+            $('#edit_display_id').val('#' + app.id);
+            $('#edit_jenis_kredit').val(app.jenis_kredit);
+            $('#edit_nama').val(app.nama + ' (' + app.username + ')');
+            $('#edit_status').val(app.status);
+            $('#edit_jumlah_pinjaman').val(Number(app.jumlah_pinjaman || 0));
+
+            const modal = new bootstrap.Modal(document.getElementById('editModal'));
+            modal.show();
         }
 
         function isImageFile(path) {

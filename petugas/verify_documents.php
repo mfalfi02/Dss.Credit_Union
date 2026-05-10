@@ -99,7 +99,6 @@ $result = $conn->query(
      JOIN users u ON a.user_id = u.id
      LEFT JOIN hasil_saw h ON h.pengajuan_id = p.id
      LEFT JOIN dokumen d ON d.pengajuan_id = p.id
-     WHERE p.status IN ('pending', 'verified', 'document_rejected')
      GROUP BY p.id, h.skor_terbobot, h.persentase_saw, h.kelayakan
      ORDER BY p.created_at DESC"
 );
@@ -140,6 +139,8 @@ function statusBadgeClass($status)
         'pending' => 'warning',
         'verified' => 'info',
         'document_rejected' => 'danger',
+        'accepted' => 'success',
+        'rejected' => 'danger',
         default => 'secondary',
     };
 }
@@ -385,22 +386,24 @@ function statusLabel($status)
                                         </button>
                                     </form>
                                 <?php elseif ($app['status'] === 'verified'): ?>
-                                    <form method="POST" class="d-inline">
+                                    <form method="POST" action="../proses/recommend.php" class="d-inline">
                                         <input type="hidden" name="pengajuan_id" value="<?php echo (int) $app['id']; ?>">
-                                        <input type="hidden" name="status" value="accepted">
-                                        <input type="hidden" name="catatan" value="Validasi akhir disetujui CU">
+                                        <input type="hidden" name="decision" value="accepted">
+                                        <input type="hidden" name="notes" value="Validasi akhir disetujui CU">
                                         <button type="submit" class="btn btn-sm btn-success mb-1">
                                             Validasi Akhir
                                         </button>
                                     </form>
-                                    <form method="POST" class="d-inline">
+                                    <form method="POST" action="../proses/recommend.php" class="d-inline">
                                         <input type="hidden" name="pengajuan_id" value="<?php echo (int) $app['id']; ?>">
-                                        <input type="hidden" name="status" value="rejected">
-                                        <input type="hidden" name="catatan" value="Validasi akhir ditolak CU">
+                                        <input type="hidden" name="decision" value="rejected">
+                                        <input type="hidden" name="notes" value="Validasi akhir ditolak CU">
                                         <button type="submit" class="btn btn-sm btn-danger mb-1">
                                             Tolak CU
                                         </button>
                                     </form>
+                                <?php else: ?>
+                                    <span class="badge bg-light text-dark border">Riwayat final</span>
                                 <?php endif; ?>
                             </td>
                         </tr>

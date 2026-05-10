@@ -3,6 +3,20 @@ require_once '../config/database.php';
 require_once '../function/auth.php';
 require_once '../function/saw.php';
 
+function redirectValidationError(array $fields = [], ?string $jenis_kredit = null)
+{
+    $query = ['error' => 2];
+    if ($jenis_kredit !== null) {
+        $query['jenis'] = $jenis_kredit;
+    }
+    if (!empty($fields)) {
+        $query['fields'] = implode(',', $fields);
+    }
+
+    header('Location: ../anggota/submit_application.php?' . http_build_query($query));
+    exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     checkLogin();
     checkRole('anggota');
@@ -12,8 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $jumlah_pinjaman = (float) ($_POST['jumlah_pinjaman'] ?? 0);
 
     if (!in_array($jenis_kredit, ['KTA', 'KUR'], true) || $jumlah_pinjaman <= 0) {
-        header('Location: ../anggota/submit_application.php?error=2');
-        exit();
+        redirectValidationError(['jenis_kredit', 'jumlah_pinjaman'], $jenis_kredit);
     }
 
     $detail_pinjaman = [
@@ -33,25 +46,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $is_student = $status_pekerjaan === 'Pelajar/Mahasiswa';
 
         if ($tujuan_pinjaman === '' || $status_pekerjaan === '' || $penghasilan_bulanan <= 0) {
-            header('Location: ../anggota/submit_application.php?error=2');
-            exit();
+            redirectValidationError(['tujuan_pinjaman_kta', 'status_pekerjaan_kta', 'penghasilan_bulanan_kta'], $jenis_kredit);
         }
 
         if ($status_pekerjaan === 'Lainnya') {
             if ($status_pekerjaan_lainnya === '') {
-                header('Location: ../anggota/submit_application.php?error=2');
-                exit();
+                redirectValidationError(['status_pekerjaan_lainnya_kta'], $jenis_kredit);
             }
         }
 
         if ($is_student) {
             if ($jumlah_tanggungan < 0) {
-                header('Location: ../anggota/submit_application.php?error=2');
-                exit();
+                redirectValidationError(['jumlah_tanggungan_kta'], $jenis_kredit);
             }
         } elseif ($nama_tempat_kerja === '' || $lama_bekerja <= 0) {
-            header('Location: ../anggota/submit_application.php?error=2');
-            exit();
+            redirectValidationError(['nama_tempat_kerja_kta', 'lama_bekerja_bulan_kta'], $jenis_kredit);
         }
 
         $detail_pinjaman = [
@@ -78,8 +87,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $tujuan_dana = trim($_POST['tujuan_dana_kur'] ?? '');
 
         if ($nama_usaha === '' || $bidang_usaha === '' || $alamat_usaha === '' || $lama_usaha_bulan <= 0 || $omzet_bulanan <= 0 || $laba_bersih_bulanan <= 0 || $legalitas_usaha === '' || $tujuan_dana === '') {
-            header('Location: ../anggota/submit_application.php?error=2');
-            exit();
+            $missingFields = [];
+            if ($nama_usaha === '') { $missingFields[] = 'nama_usaha_kur'; }
+            if ($bidang_usaha === '') { $missingFields[] = 'bidang_usaha_kur'; }
+            if ($alamat_usaha === '') { $missingFields[] = 'alamat_usaha_kur'; }
+            if ($lama_usaha_bulan <= 0) { $missingFields[] = 'lama_usaha_bulan_kur'; }
+            if ($omzet_bulanan <= 0) { $missingFields[] = 'omzet_bulanan_kur'; }
+            if ($laba_bersih_bulanan <= 0) { $missingFields[] = 'laba_bersih_bulanan_kur'; }
+            if ($legalitas_usaha === '') { $missingFields[] = 'legalitas_usaha_kur'; }
+            if ($tujuan_dana === '') { $missingFields[] = 'tujuan_dana_kur'; }
+            redirectValidationError($missingFields, $jenis_kredit);
         }
 
         $detail_pinjaman = [

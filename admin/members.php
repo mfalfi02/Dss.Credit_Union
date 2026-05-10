@@ -36,6 +36,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute();
 
                 $conn->commit();
+                header('Location: members.php?success=1');
+                exit();
             }
         } elseif (isset($_POST['edit_member'])) {
             $user_id = (int) ($_POST['user_id'] ?? 0);
@@ -71,6 +73,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute();
 
                 $conn->commit();
+                header('Location: members.php?success=2');
+                exit();
             }
         } elseif (isset($_POST['delete_member'])) {
             $user_id = (int) ($_POST['user_id'] ?? 0);
@@ -79,6 +83,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->bind_param('i', $user_id);
                 $stmt->execute();
             }
+            header('Location: members.php?success=3');
+            exit();
         }
 
         header('Location: members.php');
@@ -99,6 +105,16 @@ $result = $conn->query(
      ORDER BY a.id'
 );
 $members = $result->fetch_all(MYSQLI_ASSOC);
+
+$successMessage = '';
+if (isset($_GET['success'])) {
+    $successMessage = match ((string) $_GET['success']) {
+        '1' => 'Anggota berhasil ditambahkan.',
+        '2' => 'Anggota berhasil diperbarui.',
+        '3' => 'Anggota berhasil dihapus.',
+        default => '',
+    };
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -114,6 +130,9 @@ $members = $result->fetch_all(MYSQLI_ASSOC);
 <body>
     <?php echo renderAdminHeader('members', 'Kelola Anggota', 'Data khusus anggota atau peminjam di sistem.'); ?>
     <div class="container admin-shell">
+        <?php if ($successMessage !== ''): ?>
+            <div class="alert alert-success border-0 shadow-sm mb-3"><?php echo htmlspecialchars($successMessage); ?></div>
+        <?php endif; ?>
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
                 <h2 class="mb-1">Kelola Anggota</h2>
@@ -149,7 +168,15 @@ $members = $result->fetch_all(MYSQLI_ASSOC);
                     <td><?php echo htmlspecialchars($m['created_at']); ?></td>
                     <td>
                         <button class="btn btn-sm btn-outline-warning"
-                            onclick="editMember(<?php echo (int) $m['user_id']; ?>, <?php echo (int) $m['anggota_id']; ?>, <?php echo json_encode($m['username']); ?>, <?php echo json_encode($m['nama']); ?>, <?php echo json_encode($m['alamat']); ?>, <?php echo json_encode($m['no_hp']); ?>, <?php echo json_encode($m['email']); ?>, <?php echo json_encode($m['tanggal_lahir']); ?>)">
+                            type="button"
+                            data-user-id="<?php echo (int) $m['user_id']; ?>"
+                            data-anggota-id="<?php echo (int) $m['anggota_id']; ?>"
+                            data-username="<?php echo htmlspecialchars($m['username'], ENT_QUOTES, 'UTF-8'); ?>"
+                            data-nama="<?php echo htmlspecialchars($m['nama'], ENT_QUOTES, 'UTF-8'); ?>"
+                            data-alamat="<?php echo htmlspecialchars($m['alamat'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                            data-no-hp="<?php echo htmlspecialchars($m['no_hp'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                            data-email="<?php echo htmlspecialchars($m['email'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                            data-tanggal-lahir="<?php echo htmlspecialchars((string) ($m['tanggal_lahir'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
                             <i class="fas fa-pen-to-square me-1"></i>Edit
                         </button>
                         <form method="POST" class="d-inline" onsubmit="return confirm('Hapus anggota dan pengguna terkait?')">
@@ -278,6 +305,19 @@ $members = $result->fetch_all(MYSQLI_ASSOC);
     <script>
         $(document).ready(function() {
             $('#membersTable').DataTable();
+
+            $('button[data-anggota-id]').on('click', function() {
+                editMember(
+                    $(this).data('user-id'),
+                    $(this).data('anggota-id'),
+                    $(this).data('username'),
+                    $(this).data('nama'),
+                    $(this).data('alamat'),
+                    $(this).data('no-hp'),
+                    $(this).data('email'),
+                    $(this).data('tanggal-lahir')
+                );
+            });
         });
 
         function editMember(userId, anggotaId, username, nama, alamat, noHp, email, tanggalLahir) {
