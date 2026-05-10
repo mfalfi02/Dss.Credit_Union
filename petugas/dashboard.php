@@ -251,7 +251,7 @@ function statusLabel(string $status): string
                         </div>
                         <h1 class="display-6 fw-bold mb-3">Selamat datang, <?php echo htmlspecialchars($currentUserName); ?></h1>
                         <p class="lead mb-4 text-white-75" style="max-width: 46rem;">
-                            Pilih menu di bawah untuk melanjutkan pekerjaan harian petugas dengan tampilan yang lebih ringkas dan fokus.
+                            Periksa dan Kelola Pengajuan Pinjaman.
                         </p>
                     </div>
                 </div>
