@@ -74,7 +74,13 @@ function statusBadgeClass($status)
     <?php echo adminPageStyles(); ?>
     <style>
         .dashboard-section {
-            gap: 1rem;
+            align-items: stretch;
+        }
+
+        @media (min-width: 992px) {
+            .dashboard-section > [class*="col-"] {
+                display: flex;
+            }
         }
 
         @media (max-width: 575.98px) {
@@ -132,7 +138,7 @@ function statusBadgeClass($status)
         </div>
 
         <div class="row g-3 dashboard-section">
-            <div class="col-12 col-xl-4">
+            <div class="col-12 col-lg-5">
                 <div class="card admin-card h-100">
                     <div class="card-body">
                         <h4 class="admin-section-title mb-1">Akses Cepat</h4>
@@ -148,7 +154,7 @@ function statusBadgeClass($status)
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-xl-8">
+            <div class="col-12 col-lg-7">
                 <div class="card admin-card h-100">
                     <div class="card-body">
                         <?php echo renderAdminSectionCard('Pengajuan Terbaru', 'Lima pengajuan terakhir untuk memantau aktivitas sistem.', [

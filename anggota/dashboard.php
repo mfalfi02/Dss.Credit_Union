@@ -120,8 +120,18 @@ if (isset($_SESSION['user_id'])) {
             font-weight: 800;
         }
 
-        .dashboard-shell {
+        .status-feature-card .card-body {
+            display: flex;
+            flex-direction: column;
             gap: 1rem;
+        }
+
+        .status-feature-card .status-actions {
+            margin-top: auto;
+        }
+
+        .dashboard-shell {
+            align-items: stretch;
         }
 
         @media (max-width: 991.98px) {
@@ -144,6 +154,10 @@ if (isset($_SESSION['user_id'])) {
             .choice-card .btn,
             .status-card .btn {
                 width: 100%;
+            }
+
+            .status-feature-card .card-body {
+                gap: .75rem;
             }
 
             .choice-card .d-flex,
@@ -183,16 +197,13 @@ if (isset($_SESSION['user_id'])) {
                         </p>
                     </div>
                     <div class="col-lg-4 text-lg-end">
-                        <a href="status.php" class="btn btn-light btn-lg">
-                            <i class="fas fa-list-check me-2"></i>Lihat Status Pengajuan
-                        </a>
                     </div>
                 </div>
             </div>
         </section>
 
         <section class="row g-4 mb-4 dashboard-shell">
-            <div class="col-12 col-lg-8">
+            <div class="col-12 col-lg-6">
                 <div class="card choice-card h-100">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-start justify-content-between mb-3">
@@ -209,8 +220,8 @@ if (isset($_SESSION['user_id'])) {
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-lg-4">
-                <div class="card choice-card h-100">
+            <div class="col-12 col-lg-6">
+                <div class="card choice-card h-100 status-feature-card">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-start justify-content-between mb-3">
                             <div class="choice-icon status-icon"><i class="fas fa-clock-rotate-left"></i></div>
@@ -220,9 +231,11 @@ if (isset($_SESSION['user_id'])) {
                         <p class="text-muted mb-4">
                             Lihat perkembangan pengajuan yang sudah dibuat, termasuk status, hasil SAW, dan jumlah dokumen.
                         </p>
-                        <a href="status.php" class="btn btn-outline-primary w-100">
-                            Buka Status
-                        </a>
+                        <div class="status-actions">
+                            <a href="status.php" class="btn btn-outline-primary w-100">
+                                Buka Status
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>

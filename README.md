@@ -4,11 +4,12 @@ Sistem Pendukung Keputusan (SPK) untuk penerimaan kredit KTA dan KUR menggunakan
 
 ## Petunjuk Instalasi
 
-1. **Instal XAMPP atau MySQL Server**
+1. **MySQL Server**
    - Pastikan MySQL berjalan di port default (3306)
    - Untuk XAMPP: Start Apache dan MySQL dari XAMPP Control Panel
 
 2. **Pengaturan Basis Data**
+   - Schema database  
    - Buka terminal dan navigasi ke folder project
    - Jalankan rebuild database:
      - `mysql -u root -p < database/reset.sql`
@@ -16,12 +17,12 @@ Sistem Pendukung Keputusan (SPK) untuk penerimaan kredit KTA dan KUR menggunakan
    - Masukkan password MySQL root Anda
 
 3. **Konfigurasi Basis Data**
+   - Seusai kan confi database dgn nama yang anda buat di database
    - Edit `config/database.php` jika perlu mengubah kredensial DB
 
 4. **Akses Sistem**
    - Buka `index.php` di browser
-   - Masuk default admin: nama pengguna `admin`, kata sandi `admin123`
-   - Masuk default anggota: nama pengguna `anggota`, kata sandi `anggota123`
+   - Masuk Untuk login sseusai authentikasi login yang telah di buat di database
 
 ## Struktur Folder
 
@@ -40,14 +41,12 @@ Sistem Pendukung Keputusan (SPK) untuk penerimaan kredit KTA dan KUR menggunakan
 ## Peran
 
 - **Admin**: Kelola pengguna, anggota, aplikasi, kriteria, laporan
-- **Petugas**: Verifikasi dokumen, isi nilai kriteria, lihat peringkat
-- **Anggota**: Daftar, ajukan kredit, unggah dokumen, lihat status
+- **Petugas**: Verifikasi dokumen dan Final validasi, melihat Hasil Perhitungan SAW
+- **Anggota**: Daftar, ajukan kredit, unggah dokumen, lihat status pengajuan
 
 ## Data Default
 
-- Database: `spk_kredit_cu`
-- Admin default: `admin`
-- Password default admin: `admin123`
+- Nama Database yang di saran kan agar sesuai dgn env: `spk_kredit_cu`
 
 ## Metode SAW
 
@@ -58,6 +57,7 @@ Kriteria default:
 - Jaminan Aset (20% - benefit)
 - Usia (15% - benefit)
 - Riwayat Pinjaman (10% - benefit)
+- krateria di CRUD oleh admin
 
 Proses:
 
@@ -98,7 +98,7 @@ Proses:
 - Pencegahan XSS dengan `htmlspecialchars`
 
 ## Kontribusi
-
+- github 
 - Gunakan branch `feature/` untuk pengembangan
 - Pull request untuk penggabungan ke `main`
 - Ikuti konvensi penamaan dan struktur folder
