@@ -1,4 +1,5 @@
 <?php
+// Halaman admin untuk mengatur kriteria SAW, bobot, dan target pinjaman.
 session_start();
 require_once '../function/auth.php';
 checkLogin();
@@ -9,6 +10,7 @@ require_once 'ui.php';
 $conn = getDBConnection();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Proses tambah, ubah, atau hapus kriteria.
     try {
         if (isset($_POST['add_criteria'])) {
             $nama = trim($_POST['nama'] ?? '');
@@ -49,6 +51,7 @@ $criteria = $result->fetch_all(MYSQLI_ASSOC);
 
 function criterionKindLabel(string $jenis): string
 {
+    // Label jenis kriteria yang lebih mudah dibaca.
     return $jenis === 'benefit' ? 'Keuntungan' : 'Biaya';
 }
 
@@ -59,6 +62,7 @@ function criterionKindClass(string $jenis): string
 
 function criterionTargetClass(string $target): string
 {
+    // Warna badge berdasarkan target kredit.
     return match ($target) {
         'KTA' => 'primary',
         'KUR' => 'success',
@@ -138,6 +142,7 @@ function criterionTargetClass(string $target): string
 <body>
     <?php echo renderAdminHeader('criteria', 'Kelola Kriteria', 'Atur bobot dan jenis kriteria untuk perhitungan SAW.'); ?>
     <div class="container admin-shell">
+        <!-- Tombol tambah kriteria dan judul halaman -->
         <div class="d-flex justify-content-between align-items-center mb-3 criteria-page-header">
             <div>
                 <h2 class="mb-1">Kelola Kriteria</h2>
@@ -150,6 +155,7 @@ function criterionTargetClass(string $target): string
 
         <div class="card criteria-card">
             <div class="card-body">
+                <!-- Tabel daftar kriteria -->
                 <div class="table-responsive">
                     <table id="criteriaTable" class="table table-hover align-middle mb-0 criteria-table">
                         <thead>
@@ -218,6 +224,7 @@ function criterionTargetClass(string $target): string
     <div class="modal fade" id="addCriteriaModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
+                <!-- Form tambah kriteria -->
                 <div class="modal-header">
                     <h5 class="modal-title">Tambah Kriteria</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>

@@ -1,4 +1,5 @@
 <?php
+// Halaman laporan admin untuk merangkum data pengajuan dan hasil sistem.
 session_start();
 require_once '../function/auth.php';
 checkLogin();
@@ -9,6 +10,7 @@ $conn = getDBConnection();
 
 function normalizeDateInput(?string $value): ?string
 {
+    // Validasi input tanggal agar aman dipakai pada filter laporan.
     $value = trim((string) $value);
     if ($value === '') {
         return null;
@@ -24,6 +26,7 @@ function normalizeDateInput(?string $value): ?string
 
 function getReportFiltersFromRequest(): array
 {
+    // Ambil filter periode dari query string.
     return [
         'from' => normalizeDateInput($_GET['from'] ?? null),
         'to' => normalizeDateInput($_GET['to'] ?? null),
@@ -32,6 +35,7 @@ function getReportFiltersFromRequest(): array
 
 function buildDateRangeClause(string $column, ?string $from, ?string $to): array
 {
+    // Susun kondisi SQL berdasarkan rentang tanggal yang dipilih.
     $conditions = [];
     $params = [];
     $types = '';
@@ -57,6 +61,7 @@ function buildDateRangeClause(string $column, ?string $from, ?string $to): array
 
 function bindParams(mysqli_stmt $stmt, string $types, array $params): void
 {
+    // Helper bind parameter untuk prepared statement dinamis.
     if ($params === []) {
         return;
     }
@@ -71,11 +76,13 @@ function bindParams(mysqli_stmt $stmt, string $types, array $params): void
 
 function formatLoanAmount(float $amount): string
 {
+    // Format rupiah untuk tampilan laporan.
     return 'Rp ' . number_format($amount, 0, ',', '.');
 }
 
 function formatPeriodLabel(?string $from, ?string $to): string
 {
+    // Judul periode laporan yang mudah dibaca.
     if ($from && $to) {
         return $from . ' s.d. ' . $to;
     }
@@ -93,6 +100,7 @@ function formatPeriodLabel(?string $from, ?string $to): string
 
 function reportTypeLabel(string $type): string
 {
+    // Label jenis laporan untuk tampilan dan metadata.
     return match ($type) {
         'peminjaman' => 'Laporan Peminjaman',
         'summary' => 'Ringkasan',
@@ -104,6 +112,7 @@ function reportTypeLabel(string $type): string
 
 function fetchLoanReportData(mysqli $conn, ?string $from, ?string $to): array
 {
+    // Ambil data laporan utama beserta ringkasan status pengajuan.
     $range = buildDateRangeClause('p.created_at', $from, $to);
     $sql = 'SELECT p.id, p.jenis_kredit, p.jumlah_pinjaman, p.created_at, p.status,
                    a.nama, u.username,
@@ -177,11 +186,13 @@ function fetchLoanReportData(mysqli $conn, ?string $from, ?string $to): array
 
 function jsonReportPayload(array $report): string
 {
+    // Serialisasi data laporan agar bisa disimpan atau dipakai ulang.
     return json_encode($report, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}';
 }
 
 function decodeReportPayload(?string $json): array
 {
+    // Kembalikan payload laporan ke bentuk array.
     if ($json === null || $json === '') {
         return [];
     }
@@ -192,6 +203,7 @@ function decodeReportPayload(?string $json): array
 
 function renderLoanTable(array $rows, string $emptyMessage): string
 {
+    // Bangun tabel HTML laporan untuk data pengajuan.
     if (empty($rows)) {
         return '<div class="alert alert-light border text-muted mb-0">' . htmlspecialchars($emptyMessage) . '</div>';
     }
@@ -248,6 +260,7 @@ function renderLoanTable(array $rows, string $emptyMessage): string
 
 function statusLabel(string $status): string
 {
+    // Label status pengajuan pada laporan.
     return match ($status) {
         'pending' => 'Menunggu',
         'verified' => 'Siap Validasi Final',

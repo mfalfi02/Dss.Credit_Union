@@ -1,8 +1,10 @@
 <?php
+// Proses penyimpanan pengajuan baru beserta dokumen pendukungnya.
 require_once '../config/database.php';
 require_once '../function/auth.php';
 require_once '../function/saw.php';
 
+// Arahkan kembali ke form jika data wajib tidak lengkap.
 function redirectValidationError(array $fields = [], ?string $jenis_kredit = null)
 {
     $query = ['error' => 2];
@@ -18,6 +20,7 @@ function redirectValidationError(array $fields = [], ?string $jenis_kredit = nul
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Pastikan hanya anggota login yang dapat mengajukan pinjaman.
     checkLogin();
     checkRole('anggota');
 
@@ -29,6 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirectValidationError(['jenis_kredit', 'jumlah_pinjaman'], $jenis_kredit);
     }
 
+    // Bangun payload detail yang akan disimpan sebagai JSON.
     $detail_pinjaman = [
         'jenis_kredit' => $jenis_kredit,
         'jumlah_pinjaman' => $jumlah_pinjaman,
@@ -114,6 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $conn = getDBConnection();
 
+    // Cari anggota yang terhubung ke akun login saat ini.
     $stmt = $conn->prepare("SELECT id FROM anggota WHERE user_id = ?");
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
@@ -125,6 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
+        // Simpan pengajuan utama terlebih dahulu sebelum upload dokumen.
         $anggota_id = (int) $member['id'];
         $detail_json = json_encode($detail_pinjaman, JSON_UNESCAPED_UNICODE);
 
@@ -148,6 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $upload_errors = [];
     try {
+        // Siapkan folder upload dan daftar file sesuai jenis kredit.
         $upload_dir = '../uploads/';
         if (!is_dir($upload_dir)) {
             mkdir($upload_dir, 0775, true);
@@ -180,6 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (isset($_FILES[$input_name]) && $_FILES[$input_name]['error'] == 0) {
                 $file = $_FILES[$input_name];
                 if (in_array($file['type'], $allowed_types) && $file['size'] <= 5000000) {
+                    // Simpan file fisik dan catat metadata dokumennya.
                     $filename = uniqid('', true) . '_' . basename($file['name']);
                     $path = $upload_dir . $filename;
                     if (move_uploaded_file($file['tmp_name'], $path)) {

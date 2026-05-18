@@ -1,4 +1,5 @@
 <?php
+// Halaman petugas untuk memeriksa dokumen, mengubah status, dan memberi keputusan awal.
 session_start();
 require_once '../function/auth.php';
 checkLogin();
@@ -15,6 +16,7 @@ $activeTypes = $conn->query(
      WHERE status IN ('verified', 'accepted')"
 );
 if ($activeTypes) {
+    // Pastikan ranking SAW tetap sinkron untuk pengajuan yang valid.
     while ($row = $activeTypes->fetch_assoc()) {
         if (!empty($row['jenis_kredit'])) {
             $saw->calculateRanking($row['jenis_kredit']);
@@ -23,6 +25,7 @@ if ($activeTypes) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Proses perubahan status verifikasi atau penolakan.
     $pengajuan_id = (int) ($_POST['pengajuan_id'] ?? 0);
     $status = $_POST['status'] ?? '';
     $catatan = trim($_POST['catatan'] ?? '');
@@ -41,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $conn->begin_transaction();
 
         try {
+            // Update status pengajuan dan simpan riwayat aksi petugas.
             $stmt = $conn->prepare("UPDATE pengajuan SET status = ? WHERE id = ?");
             $stmt->bind_param("si", $status, $pengajuan_id);
             $stmt->execute();
@@ -135,6 +139,7 @@ unset($app);
 
 function statusBadgeClass($status)
 {
+    // Badge status untuk tabel verifikasi.
     return match ($status) {
         'pending' => 'warning',
         'verified' => 'info',
@@ -147,6 +152,7 @@ function statusBadgeClass($status)
 
 function sawBadgeClass($kelayakan)
 {
+    // Badge rekomendasi sistem berdasarkan kelayakan SAW.
     if ($kelayakan === 'layak') {
         return 'success';
     }
@@ -158,6 +164,7 @@ function sawBadgeClass($kelayakan)
 
 function eligibilityLabel($value)
 {
+    // Label deskriptif untuk hasil kelayakan.
     return $value === 'layak'
         ? 'Memenuhi Batas Minimum'
         : 'Belum Memenuhi Batas Minimum';
@@ -165,6 +172,7 @@ function eligibilityLabel($value)
 
 function isStudentApplicant($detailJson)
 {
+    // Cek apakah pemohon KTA termasuk kategori pelajar/mahasiswa.
     $detail = json_decode($detailJson ?? '', true);
     if (!is_array($detail)) {
         return false;
@@ -175,6 +183,7 @@ function isStudentApplicant($detailJson)
 
 function buildDetailSummary($detailJson, $jenisKredit)
 {
+    // Ringkas detail pengajuan agar mudah dibaca di tabel.
     $detail = json_decode($detailJson ?? '', true);
     if (!is_array($detail)) {
         return '-';
@@ -221,6 +230,7 @@ function buildDetailSummary($detailJson, $jenisKredit)
 
 function statusLabel($status)
 {
+    // Label status pengajuan untuk petugas.
     return match ($status) {
         'pending' => 'Menunggu',
         'verified' => 'Siap Validasi Final',

@@ -1,4 +1,5 @@
 <?php
+// Halaman admin untuk mengelola data akun dan biodata anggota.
 session_start();
 require_once '../function/auth.php';
 checkLogin();
@@ -9,6 +10,7 @@ require_once 'ui.php';
 $conn = getDBConnection();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Tangani tambah, ubah, dan hapus anggota beserta akun user terkait.
     try {
         if (isset($_POST['add_member'])) {
             $username = trim($_POST['username'] ?? '');
@@ -108,6 +110,7 @@ $members = $result->fetch_all(MYSQLI_ASSOC);
 
 $successMessage = '';
 if (isset($_GET['success'])) {
+    // Pesan status untuk operasi anggota.
     $successMessage = match ((string) $_GET['success']) {
         '1' => 'Anggota berhasil ditambahkan.',
         '2' => 'Anggota berhasil diperbarui.',
@@ -130,6 +133,7 @@ if (isset($_GET['success'])) {
 <body>
     <?php echo renderAdminHeader('members', 'Kelola Anggota', 'Data khusus anggota atau peminjam di sistem.'); ?>
     <div class="container admin-shell">
+        <!-- Notifikasi hasil aksi anggota -->
         <?php if ($successMessage !== ''): ?>
             <div class="alert alert-success border-0 shadow-sm mb-3"><?php echo htmlspecialchars($successMessage); ?></div>
         <?php endif; ?>
@@ -145,6 +149,7 @@ if (isset($_GET['success'])) {
 
         <div class="card admin-card">
             <div class="card-body">
+                <!-- Tabel data anggota -->
                 <div class="table-responsive">
                     <table id="membersTable" class="table table-striped mb-0 align-middle">
                         <thead>
@@ -201,6 +206,7 @@ if (isset($_GET['success'])) {
     <div class="modal fade" id="addMemberModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
+                <!-- Form tambah anggota -->
                 <div class="modal-header">
                     <h5 class="modal-title">Tambah Anggota</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>

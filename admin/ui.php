@@ -1,6 +1,8 @@
 <?php
+// Komponen UI bersama untuk halaman admin agar tampilan konsisten di semua modul.
 
 if (!function_exists('adminPageStyles')) {
+    // Variabel style global untuk shell, kartu, tabel, dan perilaku responsif admin.
     function adminPageStyles(): string
     {
         return <<<'HTML'
@@ -112,6 +114,7 @@ HTML;
 }
 
 if (!function_exists('renderAdminHeader')) {
+    // Header admin reusable berisi navbar, judul halaman, dan aksi cepat.
     function renderAdminHeader(string $active, string $title, string $subtitle, array $actions = []): string
     {
         $actionsHtml = '';
@@ -159,6 +162,7 @@ if (!function_exists('renderAdminHeader')) {
 }
 
 if (!function_exists('renderAdminSectionCard')) {
+    // Blok judul section yang dipakai di dashboard dan halaman admin lain.
     function renderAdminSectionCard(string $title, string $subtitle, array $actions = []): string
     {
         $actionsHtml = '';

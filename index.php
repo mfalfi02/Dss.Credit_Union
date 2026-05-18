@@ -1,6 +1,8 @@
 <?php
+// Halaman awal aplikasi yang mengarahkan pengguna ke dashboard sesuai role.
 session_start();
 
+// Jika sesi aktif, langsung arahkan pengguna ke halaman yang sesuai.
 if (!empty($_SESSION['role'])) {
     switch ($_SESSION['role']) {
         case 'admin':
@@ -15,12 +17,14 @@ if (!empty($_SESSION['role'])) {
     }
 }
 
+// Penanda status untuk pesan sukses atau gagal login.
 $loginError = isset($_GET['error']);
 $loginSuccess = isset($_GET['success']);
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
+    <!-- Metadata halaman awal dan library tampilan -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SPK Kredit CU Lantang Tipo Jeruju</title>

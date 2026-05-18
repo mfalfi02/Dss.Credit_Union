@@ -1,8 +1,10 @@
 <?php
+// Proses validasi final petugas untuk menerima atau menolak pengajuan.
 require_once '../config/database.php';
 require_once '../function/auth.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Pastikan hanya petugas yang sedang login yang boleh memproses keputusan.
     checkLogin();
     checkRole('petugas');
 
@@ -15,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
+    // Ambil status dan hasil SAW untuk menulis riwayat keputusan.
     $conn = getDBConnection();
 
     $stmt = $conn->prepare(
@@ -43,6 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $conn->begin_transaction();
 
     try {
+        // Update status pengajuan dan simpan catatan keputusan.
         $stmt = $conn->prepare('UPDATE pengajuan SET status = ? WHERE id = ?');
         $stmt->bind_param('si', $decision, $pengajuan_id);
         $stmt->execute();
@@ -64,6 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: ../petugas/rankings.php?success=1');
         exit();
     } catch (Throwable $e) {
+        // Kembalikan transaksi jika ada kegagalan.
         $conn->rollback();
         header('Location: ../petugas/rankings.php?error=3');
         exit();

@@ -1,9 +1,11 @@
 <?php
+// Halaman pendaftaran anggota baru dengan tampilan form yang responsif.
 $error = $_GET['error'] ?? null;
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
+    <!-- Metadata dan library tampilan untuk form pendaftaran -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pendaftaran - SPK Kredit</title>
@@ -266,6 +268,7 @@ $error = $_GET['error'] ?? null;
 </head>
 <body>
     <main class="page-shell">
+        <!-- Elemen dekoratif dan layout utama halaman register -->
         <div class="orb one"></div>
         <div class="orb two"></div>
 
@@ -273,6 +276,7 @@ $error = $_GET['error'] ?? null;
             <div class="row align-items-center g-4 g-lg-5 min-vh-100">
                 <div class="col-lg-6">
                     <section class="hero-panel">
+                        <!-- Panel informasi manfaat pendaftaran -->
                         <div class="brand mb-4">
                             <div class="brand-badge">
                                 <i class="fas fa-user-plus"></i>
@@ -317,6 +321,7 @@ $error = $_GET['error'] ?? null;
                 <div class="col-lg-6 d-flex justify-content-lg-end">
                     <section class="card login-card">
                         <div class="card-body">
+                            <!-- Form pendaftaran akun anggota -->
                             <div class="mb-4">
                                 <p class="login-subtitle mb-1 text-uppercase small fw-semibold" style="letter-spacing: .16em;">Create account</p>
                                 <h2 class="login-title h3 mb-2">Daftar sebagai Anggota</h2>

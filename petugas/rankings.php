@@ -1,4 +1,5 @@
 <?php
+// Halaman petugas untuk melihat ranking SAW dan ringkasan per anggota.
 session_start();
 require_once '../function/auth.php';
 checkLogin();
@@ -14,6 +15,7 @@ $activeTypes = $conn->query(
      WHERE status = 'accepted'"
 );
 if ($activeTypes) {
+    // Pastikan ranking mengikuti data pengajuan yang sudah diterima.
     while ($row = $activeTypes->fetch_assoc()) {
         if (!empty($row['jenis_kredit'])) {
             $saw->calculateRanking($row['jenis_kredit']);
@@ -22,6 +24,7 @@ if ($activeTypes) {
 }
 
 // Get rankings
+// Ambil data ranking utama dari hasil SAW.
 $sql = "SELECT h.pengajuan_id, h.skor_terbobot, h.ranking, p.jenis_kredit, p.jumlah_pinjaman, p.anggota_id, p.status, a.nama, p.created_at
         , h.persentase_saw, h.kelayakan, u.username
         FROM hasil_saw h
@@ -73,6 +76,7 @@ foreach ($memberSummaries as $type => $members) {
 
 function eligibilityLabel($value)
 {
+    // Label rekomendasi sistem.
     return $value === 'layak'
         ? 'Layak Direkomendasikan'
         : 'Belum Layak Direkomendasikan';

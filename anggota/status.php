@@ -1,4 +1,5 @@
 <?php
+// Halaman anggota untuk memantau semua pengajuan dan detail hasilnya.
 session_start();
 require_once '../function/auth.php';
 checkLogin();
@@ -8,6 +9,7 @@ $conn = getDBConnection();
 
 $user_id = $_SESSION['user_id'];
 $stmt = $conn->prepare(
+    // Ambil data anggota yang terhubung ke akun login saat ini.
     "SELECT a.id AS anggota_id, a.nama
      FROM anggota a
      WHERE a.user_id = ?"
@@ -18,6 +20,7 @@ $member = $stmt->get_result()->fetch_assoc();
 
 $applications = [];
 if ($member) {
+    // Ambil seluruh pengajuan milik anggota beserta hasil SAW dan jumlah dokumen.
     $sql = "SELECT p.*,
             h.skor_terbobot, h.persentase_saw, h.kelayakan, h.ranking,
             (SELECT COUNT(*) FROM dokumen d WHERE d.pengajuan_id = p.id) as dokumen_count
@@ -33,6 +36,7 @@ if ($member) {
 }
 
 function summarize_status_detail($detailJson, $jenisKredit) {
+    // Ringkas detail pengajuan agar tetap muat di tabel status.
     $detail = json_decode($detailJson ?? '', true);
     if (!is_array($detail)) {
         return '-';
@@ -69,6 +73,7 @@ function summarize_status_detail($detailJson, $jenisKredit) {
 
 function eligibilityLabel($value)
 {
+    // Label kelayakan yang dipakai di dashboard anggota.
     return $value === 'layak'
         ? 'Memenuhi Batas Minimum'
         : 'Belum Memenuhi Batas Minimum';
@@ -76,6 +81,7 @@ function eligibilityLabel($value)
 
 function statusLabel($status)
 {
+    // Ubah status teknis menjadi label yang lebih ramah.
     return match ($status) {
         'pending' => 'Menunggu',
         'verified' => 'Terverifikasi',
@@ -87,7 +93,8 @@ function statusLabel($status)
 ?>
 <!DOCTYPE html>
 <html lang="id">
-<head>
+    <head>
+    <!-- Library tampilan dan data table untuk halaman status -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Status Pengajuan - SPK Kredit</title>
@@ -105,6 +112,7 @@ function statusLabel($status)
         </div>
     </nav>
     <div class="container mt-4">
+        <!-- Aksi cepat dan daftar status pengajuan -->
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
             <div>
                 <h2 class="mb-1">Status Pengajuan</h2>
@@ -117,11 +125,13 @@ function statusLabel($status)
         </div>
 
         <?php if (!$member): ?>
+            <!-- Tampilkan pesan jika akun belum terhubung ke data anggota -->
             <div class="alert alert-warning">
                 Akun ini belum terhubung ke data anggota. Silakan lengkapi profil anggota terlebih dahulu.
             </div>
         <?php else: ?>
             <?php if (empty($applications)): ?>
+                <!-- State kosong ketika belum ada pengajuan -->
                 <div class="card border-0 shadow-sm">
                     <div class="card-body text-center py-5">
                         <div class="text-muted mb-2">Belum ada pengajuan.</div>
@@ -130,6 +140,7 @@ function statusLabel($status)
                     </div>
                 </div>
             <?php else: ?>
+            <!-- Tabel status pengajuan milik anggota -->
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
                     <table id="applicationsTable" class="table table-striped align-middle mb-0">

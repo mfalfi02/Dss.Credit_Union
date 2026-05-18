@@ -1,6 +1,8 @@
 <?php
+// Kalkulator SAW menangani scoring, normalisasi, dan penyusunan ranking kredit.
 require_once '../config/database.php';
 
+// Kelas utama untuk seluruh proses perhitungan SAW.
 class SAWCalculator {
     private $conn;
 
@@ -8,6 +10,7 @@ class SAWCalculator {
         $this->conn = $conn;
     }
 
+    // Ambang batas kelayakan disesuaikan dengan jenis kredit.
     public function getEligibilityThreshold($jenis_kredit) {
         return $jenis_kredit === 'KUR' ? 75.0 : 70.0;
     }
@@ -221,6 +224,7 @@ class SAWCalculator {
         return 1.0;
     }
 
+    // Membuat penilaian otomatis dari data pengajuan yang sudah tersimpan.
     public function buildAutomaticAssessments($pengajuan_id)
     {
         $context = $this->getApplicationContext($pengajuan_id);
@@ -294,6 +298,7 @@ class SAWCalculator {
         return $row ? $row['jenis_kredit'] : null;
     }
 
+    // Mengambil daftar kriteria aktif berdasarkan jenis kredit.
     public function getCriteria($jenis_kredit = null) {
         if ($jenis_kredit === null) {
             $result = $this->conn->query('SELECT * FROM kriteria ORDER BY jenis_kredit, id');
@@ -357,6 +362,7 @@ class SAWCalculator {
         return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     }
 
+    // Menghitung skor SAW satu pengajuan berdasarkan normalisasi dan bobot kriteria.
     public function calculateSAW($pengajuan_id, $stats = null) {
         $assessments = $this->getAssessments($pengajuan_id);
         if (empty($assessments)) {
@@ -406,6 +412,7 @@ class SAWCalculator {
         ];
     }
 
+    // Menyusun ranking akhir dan menyimpan hasil SAW ke tabel hasil.
     public function calculateRanking($jenis_kredit = null) {
         $types = $jenis_kredit ? [$jenis_kredit] : ['KTA', 'KUR'];
         $all_scores = [];

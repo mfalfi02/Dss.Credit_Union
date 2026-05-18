@@ -1,4 +1,5 @@
 <?php
+// Halaman admin untuk mengelola akun staf admin dan petugas.
 session_start();
 require_once '../function/auth.php';
 checkLogin();
@@ -9,6 +10,7 @@ require_once 'ui.php';
 $conn = getDBConnection();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Tangani tambah, ubah, dan hapus pengguna staf.
     try {
         if (isset($_POST['add_user'])) {
             $username = trim($_POST['username'] ?? '');
@@ -74,6 +76,7 @@ $users = $result->fetch_all(MYSQLI_ASSOC);
 
 $successMessage = '';
 if (isset($_GET['success'])) {
+    // Pesan status untuk hasil operasi CRUD pengguna.
     $successMessage = match ((string) $_GET['success']) {
         '1' => 'Staf berhasil ditambahkan.',
         '2' => 'Staf berhasil diperbarui.',
@@ -96,6 +99,7 @@ if (isset($_GET['success'])) {
 <body>
     <?php echo renderAdminHeader('users', 'Kelola Staf', 'Data akun sistem untuk admin dan petugas.'); ?>
     <div class="container admin-shell">
+        <!-- Pesan sukses bila ada -->
         <?php if ($successMessage !== ''): ?>
             <div class="alert alert-success border-0 shadow-sm mb-3"><?php echo htmlspecialchars($successMessage); ?></div>
         <?php endif; ?>
@@ -111,6 +115,7 @@ if (isset($_GET['success'])) {
 
         <div class="card admin-card">
             <div class="card-body">
+                <!-- Tabel daftar staf -->
                 <div class="table-responsive">
                     <table id="usersTable" class="table table-striped mb-0 align-middle">
                         <thead>
@@ -158,6 +163,7 @@ if (isset($_GET['success'])) {
     <div class="modal fade" id="addUserModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
+                <!-- Form tambah staf baru -->
                 <div class="modal-header">
                     <h5 class="modal-title">Tambah Pengguna</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -193,6 +199,7 @@ if (isset($_GET['success'])) {
     <div class="modal fade" id="editUserModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
+                <!-- Form ubah staf -->
                 <div class="modal-header">
                     <h5 class="modal-title">Ubah Staf</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>

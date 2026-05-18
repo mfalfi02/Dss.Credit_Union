@@ -1,4 +1,5 @@
 <?php
+// Dasbor admin menampilkan ringkasan sistem, akses cepat, dan pengajuan terbaru.
 session_start();
 require_once '../function/auth.php';
 checkLogin();
@@ -28,6 +29,7 @@ foreach ([
 }
 
 $recentApplications = [];
+// Ambil lima pengajuan terbaru untuk dipantau langsung dari dashboard.
 $recentResult = $conn->query(
     "SELECT p.id, p.jenis_kredit, p.status, p.jumlah_pinjaman, p.created_at, a.nama
      FROM pengajuan p
@@ -41,6 +43,7 @@ if ($recentResult) {
 
 function statusLabel($status)
 {
+    // Label status yang lebih ramah dibaca di dashboard.
     return match ($status) {
         'pending' => 'Menunggu',
         'verified' => 'Siap Validasi Final',
@@ -53,6 +56,7 @@ function statusLabel($status)
 
 function statusBadgeClass($status)
 {
+    // Warna badge mengikuti status pengajuan.
     return match ($status) {
         'pending' => 'warning',
         'verified' => 'info',
@@ -73,6 +77,7 @@ function statusBadgeClass($status)
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <?php echo adminPageStyles(); ?>
     <style>
+        /* Layout dua kartu utama di dashboard admin. */
         .dashboard-section {
             align-items: stretch;
         }
@@ -98,6 +103,7 @@ function statusBadgeClass($status)
     <?php echo renderAdminHeader('dashboard', 'Beranda Admin', 'Kelola data sistem.'); ?>
 
     <div class="container admin-shell pb-4">
+        <!-- Ringkasan metrik sistem -->
         <div class="row g-3 mb-4">
             <div class="col-12 col-sm-6 col-lg-3">
                 <div class="card metric-card h-100">
@@ -137,10 +143,12 @@ function statusBadgeClass($status)
             </div>
         </div>
 
+        <!-- Akses cepat dan pengajuan terbaru ditampilkan berdampingan di desktop -->
         <div class="row g-3 dashboard-section">
             <div class="col-12 col-lg-5">
                 <div class="card admin-card h-100">
                     <div class="card-body">
+                        <!-- Menu navigasi cepat untuk modul admin -->
                         <h4 class="admin-section-title mb-1">Akses Cepat</h4>
                         <p class="text-muted mb-4">Menu Fitur pengolahan sistem.</p>
                         <div class="d-grid gap-2">
@@ -157,6 +165,7 @@ function statusBadgeClass($status)
             <div class="col-12 col-lg-7">
                 <div class="card admin-card h-100">
                     <div class="card-body">
+                        <!-- Tabel pengajuan terbaru -->
                         <?php echo renderAdminSectionCard('Pengajuan Terbaru', 'Lima pengajuan terakhir untuk memantau aktivitas sistem.', [
                             ['label' => 'Buka Semua', 'href' => 'applications.php', 'class' => 'btn btn-outline-primary btn-sm'],
                         ]); ?>

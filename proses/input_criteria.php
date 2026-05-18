@@ -1,9 +1,11 @@
 <?php
+// Proses penyimpanan nilai kriteria petugas untuk satu pengajuan.
 require_once '../config/database.php';
 require_once '../function/auth.php';
 require_once '../function/saw.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validasi akses hanya untuk petugas yang sudah login.
     checkLogin();
     checkRole('petugas');
 
@@ -16,6 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
+    // Cek apakah pengajuan dan kriteria yang diinput memang sesuai jenis kreditnya.
     $conn = getDBConnection();
 
     $stmt = $conn->prepare('SELECT jenis_kredit FROM pengajuan WHERE id = ?');
@@ -40,6 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $conn->begin_transaction();
 
     try {
+        // Simpan atau perbarui nilai setiap kriteria yang diizinkan.
         foreach ($criteria_values as $kriteria_id => $nilai) {
             $kriteria_id = (int) $kriteria_id;
             if (!isset($allowedCriteria[$kriteria_id])) {
@@ -73,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: ../petugas/input_criteria.php?success=1');
         exit();
     } catch (Throwable $e) {
+        // Rollback jika penyimpanan nilai kriteria gagal.
         $conn->rollback();
         header('Location: ../petugas/input_criteria.php?error=1');
         exit();

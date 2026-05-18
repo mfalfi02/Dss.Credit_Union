@@ -1,4 +1,5 @@
 <?php
+// Halaman petugas untuk mengisi nilai kriteria pada pengajuan yang sudah diverifikasi.
 session_start();
 require_once '../function/auth.php';
 checkLogin();
@@ -16,6 +17,7 @@ $sql = "SELECT p.id, p.jenis_kredit, p.jumlah_pinjaman, p.created_at, a.nama
         JOIN anggota a ON p.anggota_id = a.id
         WHERE p.status = 'verified'
         ORDER BY p.created_at DESC";
+// Ambil daftar pengajuan yang siap dinilai.
 $result = $conn->query($sql);
 $applications = $result->fetch_all(MYSQLI_ASSOC);
 
@@ -25,6 +27,7 @@ $criteriaByType = [
 ];
 
 function summarizeDetail($detailJson, $jenisKredit) {
+    // Ringkas detail pengajuan untuk membantu petugas melihat konteks data.
     $detail = json_decode($detailJson ?? '', true);
     if (!is_array($detail)) {
         return '-';

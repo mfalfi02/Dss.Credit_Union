@@ -1,8 +1,10 @@
 <?php
+// Proses pembuatan akun anggota baru beserta data profil dasarnya.
 require_once '../config/database.php';
 require_once '../function/auth.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Ambil dan bersihkan data dari form pendaftaran.
     $username = trim($_POST['username'] ?? '');
     $password = trim($_POST['password'] ?? '');
     $nama = trim($_POST['nama'] ?? '');
@@ -16,6 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
+    // Simpan akun user dan data anggota dalam satu transaksi.
     $conn = getDBConnection();
     $conn->begin_transaction();
 
@@ -44,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: ../index.php?success=1');
         exit();
     } catch (Throwable $e) {
+        // Rollback jika proses penyimpanan gagal di tengah jalan.
         $conn->rollback();
         header('Location: ../anggota/register.php?error=3');
         exit();

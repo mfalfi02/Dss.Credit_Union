@@ -1,4 +1,5 @@
 <?php
+// Halaman anggota untuk mengisi form pengajuan KTA atau KUR beserta dokumen.
 session_start();
 require_once '../function/auth.php';
 checkLogin();

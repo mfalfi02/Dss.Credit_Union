@@ -1,4 +1,5 @@
 <?php
+// Halaman admin untuk melihat, mengubah, dan menghapus seluruh pengajuan.
 session_start();
 require_once '../function/auth.php';
 checkLogin();
@@ -11,6 +12,7 @@ $conn = getDBConnection();
 $saw = new SAWCalculator($conn);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Aksi form untuk update atau hapus pengajuan.
     $transactionStarted = false;
     try {
         if (isset($_POST['update_application'])) {
@@ -121,6 +123,7 @@ unset($app);
 
 function statusLabel($status)
 {
+    // Ubah status teknis menjadi label yang lebih jelas.
     return match ($status) {
         'pending' => 'Menunggu',
         'verified' => 'Siap Validasi Final',
@@ -133,6 +136,7 @@ function statusLabel($status)
 
 function statusBadgeClass($status)
 {
+    // Badge status mengikuti warna standar dashboard.
     return match ($status) {
         'pending' => 'warning',
         'verified' => 'info',
@@ -157,6 +161,7 @@ function statusBadgeClass($status)
 <body>
     <?php echo renderAdminHeader('applications', 'Kelola Pengajuan', 'Pantau status pinjaman, dokumen, dan hasil SAW dengan lebih cepat.'); ?>
     <div class="container admin-shell">
+        <!-- Notifikasi hasil aksi CRUD -->
         <?php if (isset($_GET['success']) && $_GET['success'] === '1'): ?>
             <div class="alert alert-success">Pengajuan berhasil diperbarui.</div>
         <?php elseif (isset($_GET['success']) && $_GET['success'] === '2'): ?>
@@ -172,6 +177,7 @@ function statusBadgeClass($status)
         </div>
         <div class="card admin-card">
             <div class="card-body">
+        <!-- Tabel utama data pengajuan -->
         <table id="applicationsTable" class="table table-striped align-middle mb-0">
             <thead>
                 <tr>

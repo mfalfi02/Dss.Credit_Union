@@ -1,4 +1,5 @@
 <?php
+// Halaman admin untuk melihat hasil ranking SAW per jenis kredit.
 session_start();
 require_once '../function/auth.php';
 checkLogin();
@@ -16,6 +17,7 @@ $activeTypes = $conn->query(
      WHERE status = 'accepted'"
 );
 if ($activeTypes) {
+    // Sinkronkan ranking untuk setiap jenis kredit yang aktif.
     while ($row = $activeTypes->fetch_assoc()) {
         if (!empty($row['jenis_kredit'])) {
             $saw->calculateRanking($row['jenis_kredit']);
@@ -24,6 +26,7 @@ if ($activeTypes) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['recalculate_saw'])) {
+    // Jalankan perhitungan ulang SAW sesuai pilihan jenis kredit.
     $type = $_POST['jenis_kredit'] ?? '';
     if (in_array($type, ['KTA', 'KUR'], true)) {
         $saw->calculateRanking($type);
@@ -89,11 +92,13 @@ foreach ($grouped as $type => $rows) {
 
 function typeBadge($type)
 {
+    // Warna badge untuk tiap jenis pinjaman.
     return $type === 'KTA' ? 'primary' : 'success';
 }
 
 function eligibilityLabel($value)
 {
+    // Label rekomendasi sistem pada hasil SAW.
     return $value === 'layak'
         ? 'Layak Direkomendasikan'
         : 'Belum Layak Direkomendasikan';
@@ -161,6 +166,7 @@ function eligibilityLabel($value)
     ]); ?>
 
     <div class="container admin-shell">
+        <!-- Dua blok utama: ranking SAW dan ringkasan per anggota -->
         <?php foreach (['KTA', 'KUR'] as $type): ?>
             <div class="card admin-card saw-section-card mb-4" id="<?php echo strtolower($type); ?>">
                 <div class="card-body">

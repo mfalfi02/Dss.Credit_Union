@@ -102,3 +102,6 @@ Proses:
 - Gunakan branch `feature/` untuk pengembangan
 - Pull request untuk penggabungan ke `main`
 - Ikuti konvensi penamaan dan struktur folder
+
+## Dokumentasi
+- Dokumentasi dengan menggunakan command pada setiap line atau fitur agar memudahkan dalam reading code dan maintanace 

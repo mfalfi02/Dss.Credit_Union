@@ -1,11 +1,14 @@
 <?php
+// Proses autentikasi login dan pengalihan dashboard berdasarkan role pengguna.
 require_once '../config/database.php';
 require_once '../function/auth.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Ambil input login dari form.
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
 
+    // Cocokkan kredensial ke tabel users dan roles.
     $conn = getDBConnection();
     $stmt = $conn->prepare("SELECT u.id, u.password, r.name as role FROM users u JOIN roles r ON u.role_id = r.id WHERE u.username = ?");
     $stmt->bind_param("s", $username);
@@ -18,11 +21,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (session_status() === PHP_SESSION_NONE) {
                 session_start();
             }
+            // Reset session ID agar login lebih aman.
             session_regenerate_id(true);
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['role'] = $user['role'];
 
-            // Redirect based on role
+            // Arahkan pengguna ke dashboard sesuai perannya.
             switch ($user['role']) {
                 case 'admin':
                     header('Location: ../admin/dashboard.php');
@@ -38,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // Invalid login
+    // Jika login gagal, kembali ke halaman awal dengan pesan error.
     header('Location: ../index.php?error=1');
     exit();
 }

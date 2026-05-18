@@ -1,4 +1,5 @@
 <?php
+// Dasbor petugas untuk memantau pengajuan, verifikasi, dan hasil SAW.
 session_start();
 require_once '../function/auth.php';
 checkLogin();
@@ -9,6 +10,7 @@ $conn = getDBConnection();
 
 $currentUserName = 'Petugas';
 if (isset($_SESSION['user_id'])) {
+    // Ambil nama pengguna aktif untuk sapaan dashboard.
     $stmt = $conn->prepare('SELECT username FROM users WHERE id = ? LIMIT 1');
     if ($stmt) {
         $stmt->bind_param('i', $_SESSION['user_id']);
@@ -35,6 +37,7 @@ $queries = [
 ];
 
 foreach ($queries as $key => $sql) {
+    // Hitung ringkasan metrik operasional petugas.
     $result = $conn->query($sql);
     if ($result) {
         $stats[$key] = (int) ($result->fetch_assoc()['total'] ?? 0);
@@ -56,6 +59,7 @@ if ($recentResult) {
 
 function statusBadgeClass(string $status): string
 {
+    // Warna badge status untuk kartu dan tabel.
     return match ($status) {
         'pending' => 'warning',
         'verified' => 'info',
@@ -68,6 +72,7 @@ function statusBadgeClass(string $status): string
 
 function statusLabel(string $status): string
 {
+    // Ubah status teknis menjadi label yang mudah dipahami.
     return match ($status) {
         'pending' => 'Menunggu Verifikasi',
         'verified' => 'Siap Validasi Final',
@@ -87,6 +92,7 @@ function statusLabel(string $status): string
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* Variabel tema visual untuk dashboard petugas. */
         :root {
             --petugas-bg: #f5f7fb;
             --petugas-card: #ffffff;
@@ -241,6 +247,7 @@ function statusLabel(string $status): string
     </nav>
 
     <main class="container py-4 py-lg-5">
+        <!-- Hero sambutan -->
         <section class="hero card mb-4">
             <div class="card-body p-4 p-lg-5 position-relative">
                 <div class="row align-items-center g-4">
@@ -258,6 +265,7 @@ function statusLabel(string $status): string
             </div>
         </section>
 
+        <!-- Dua aksi utama petugas -->
         <section class="row g-4 mb-4">
             <div class="col-12 col-lg-6">
                 <div class="action-card p-4">
@@ -287,6 +295,7 @@ function statusLabel(string $status): string
             </div>
         </section>
 
+        <!-- Tabel antrean pengajuan terbaru -->
         <section class="task-card p-4">
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
                 <div>
