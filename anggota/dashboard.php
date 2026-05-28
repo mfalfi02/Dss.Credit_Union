@@ -131,6 +131,18 @@ if (isset($_SESSION['user_id'])) {
             font-weight: 800;
         }
 
+        /* Susun isi kartu fitur secara vertikal agar tombol selalu di posisi bawah */
+        .feature-card .card-body {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        /* Area aksi di bagian bawah kartu fitur */
+        .feature-card .feature-actions {
+            margin-top: auto;
+        }
+
         /* Layout fleksibel khusus kartu status agar isi mudah menyesuaikan tinggi */
         .status-feature-card .card-body {
             display: flex;
@@ -224,7 +236,7 @@ if (isset($_SESSION['user_id'])) {
         <section class="row g-4 mb-4 dashboard-shell">
             <div class="col-12 col-lg-6">
                 <!-- Kartu fitur: ajukan kredit/pinjaman -->
-                <div class="card choice-card h-100">
+                <div class="card choice-card h-100 feature-card">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-start justify-content-between mb-3">
                             <div class="choice-icon kta-icon"><i class="fas fa-hand-holding-dollar"></i></div>
@@ -234,15 +246,17 @@ if (isset($_SESSION['user_id'])) {
                         <p class="text-muted mb-4">
                             Mulai pengajuan dari satu menu saja. Nanti Anda akan memilih jenis pinjaman KTA atau KUR di dalam form, lalu mengisi data yang sesuai.
                         </p>
-                        <a href="submit_application.php" class="btn btn-primary w-100">
-                            Mulai Pengajuan
-                        </a>
+                        <div class="feature-actions">
+                            <a href="submit_application.php" class="btn btn-primary w-100">
+                                Mulai Pengajuan
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="col-12 col-lg-6">
                 <!-- Kartu fitur: status pengajuan -->
-                <div class="card choice-card h-100 status-feature-card">
+                <div class="card choice-card h-100 feature-card status-feature-card">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-start justify-content-between mb-3">
                             <div class="choice-icon status-icon"><i class="fas fa-clock-rotate-left"></i></div>

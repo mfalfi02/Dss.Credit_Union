@@ -123,7 +123,7 @@ function statusLabel(string $status): string
         }
 
         .hero {
-            background: linear-gradient(135deg, #166534 0%, #0f766e 100%);
+            background: linear-gradient(135deg, #166534 0%, #16a34a 100%);
             color: #fff;
             border: 0;
             border-radius: 1.25rem;
