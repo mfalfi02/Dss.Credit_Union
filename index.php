@@ -19,7 +19,8 @@ if (!empty($_SESSION['role'])) {
 
 // Penanda status untuk pesan sukses atau gagal login.
 $loginError = isset($_GET['error']);
-$loginSuccess = isset($_GET['success']);
+$loginSuccess = $_GET['success'] ?? '';
+$loginEmail = trim($_GET['email'] ?? '');
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -365,10 +366,15 @@ $loginSuccess = isset($_GET['success']);
                                 </div>
                             <?php endif; ?>
 
-                            <?php if ($loginSuccess): ?>
+                            <?php if ($loginSuccess === 'registered'): ?>
                                 <div class="alert status-alert d-flex align-items-start gap-2 mb-3">
                                     <i class="fas fa-circle-check mt-1 text-success"></i>
                                     <div>Pendaftaran berhasil. Silakan masuk.</div>
+                                </div>
+                            <?php elseif ($loginSuccess === 'verified'): ?>
+                                <div class="alert status-alert d-flex align-items-start gap-2 mb-3">
+                                    <i class="fas fa-circle-check mt-1 text-success"></i>
+                                    <div>Email <?php echo htmlspecialchars($loginEmail, ENT_QUOTES, 'UTF-8'); ?> berhasil diverifikasi. Silakan masuk.</div>
                                 </div>
                             <?php endif; ?>
 

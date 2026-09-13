@@ -133,7 +133,7 @@ if (isset($_GET['success'])) {
                                 <td><?php echo (int) $u['id']; ?></td>
                                 <td><?php echo htmlspecialchars($u['username']); ?></td>
                                 <td><?php echo htmlspecialchars($u['role_name']); ?></td>
-                                <td><?php echo htmlspecialchars($u['created_at']); ?></td>
+                                <td><?php echo $u['created_at'] ? date('d-m-Y H:i:s', strtotime($u['created_at'])) : '-'; ?></td>
                                 <td>
                                     <div class="d-flex flex-wrap gap-2">
                                         <button class="btn btn-sm btn-outline-warning"

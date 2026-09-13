@@ -18,6 +18,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($result->num_rows === 1) {
         $user = $result->fetch_assoc();
         if (password_verify($password, $user['password'])) {
+            if ($user['role'] === 'anggota') {
+                $memberStmt = $conn->prepare(
+                    "SELECT a.email, u.email_verified_at
+                     FROM users u
+                     JOIN anggota a ON a.user_id = u.id
+                     WHERE u.id = ?"
+                );
+                $memberStmt->bind_param("i", $user['id']);
+                $memberStmt->execute();
+                $memberResult = $memberStmt->get_result()->fetch_assoc();
+
+                if ($memberResult && empty($memberResult['email_verified_at'])) {
+                    header('Location: ../anggota/verify_email.php?status=pending&email=' . urlencode($memberResult['email']));
+                    exit();
+                }
+            }
+
             if (session_status() === PHP_SESSION_NONE) {
                 session_start();
             }

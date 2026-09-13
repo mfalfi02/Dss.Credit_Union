@@ -5,9 +5,9 @@ require_once '../function/auth.php';
 require_once '../function/saw.php';
 
 // Arahkan kembali ke form jika data wajib tidak lengkap.
-function redirectValidationError(array $fields = [], ?string $jenis_kredit = null)
+function redirectValidationError(array $fields = [], ?string $jenis_kredit = null, int $error = 2)
 {
-    $query = ['error' => 2];
+    $query = ['error' => $error];
     if ($jenis_kredit !== null) {
         $query['jenis'] = $jenis_kredit;
     }
@@ -19,6 +19,15 @@ function redirectValidationError(array $fields = [], ?string $jenis_kredit = nul
     exit();
 }
 
+function getLoanLimits(string $jenisKredit): array
+{
+    if ($jenisKredit === 'KUR') {
+        return [5000000, 300000000];
+    }
+
+    return [1000000, 100000000];
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Pastikan hanya anggota login yang dapat mengajukan pinjaman.
     checkLogin();
@@ -27,9 +36,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user_id = (int) $_SESSION['user_id'];
     $jenis_kredit = $_POST['jenis_kredit'] ?? '';
     $jumlah_pinjaman = (float) ($_POST['jumlah_pinjaman'] ?? 0);
+    [$minimum_pinjaman, $maksimum_pinjaman] = getLoanLimits($jenis_kredit);
 
     if (!in_array($jenis_kredit, ['KTA', 'KUR'], true) || $jumlah_pinjaman <= 0) {
         redirectValidationError(['jenis_kredit', 'jumlah_pinjaman'], $jenis_kredit);
+    }
+
+    if ($jumlah_pinjaman < $minimum_pinjaman) {
+        redirectValidationError(['jumlah_pinjaman'], $jenis_kredit, 3);
+    }
+
+    if ($jumlah_pinjaman > $maksimum_pinjaman) {
+        redirectValidationError(['jumlah_pinjaman'], $jenis_kredit, 4);
     }
 
     // Bangun payload detail yang akan disimpan sebagai JSON.

@@ -2,6 +2,7 @@
 // Proses validasi final petugas untuk menerima atau menolak pengajuan.
 require_once '../config/database.php';
 require_once '../function/auth.php';
+require_once '../function/notification.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Pastikan hanya petugas yang sedang login yang boleh memproses keputusan.
@@ -63,6 +64,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $conn->prepare('INSERT INTO riwayat_pengajuan (pengajuan_id, aksi, dilakukan_oleh) VALUES (?, ?, ?)');
         $stmt->bind_param('isi', $pengajuan_id, $aksi, $user_id);
         $stmt->execute();
+
+        syncAcceptanceNotification($conn, $pengajuan_id);
 
         $conn->commit();
         header('Location: ../petugas/rankings.php?success=1');

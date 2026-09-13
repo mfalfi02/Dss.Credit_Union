@@ -9,32 +9,56 @@ require_once 'ui.php';
 
 $conn = getDBConnection();
 
+function memberLoanTypeLabel(string $types): string
+{
+    $normalized = array_values(array_filter(array_map('trim', explode(',', $types))));
+    if (empty($normalized)) {
+        return '-';
+    }
+
+    return implode(', ', $normalized);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Tangani tambah, ubah, dan hapus anggota beserta akun user terkait.
     try {
         if (isset($_POST['add_member'])) {
             $username = trim($_POST['username'] ?? '');
             $password = trim($_POST['password'] ?? '');
+            $nomor_anggota = trim($_POST['nomor_anggota'] ?? '');
             $nama = trim($_POST['nama'] ?? '');
             $alamat = trim($_POST['alamat'] ?? '');
             $no_hp = trim($_POST['no_hp'] ?? '');
             $email = trim($_POST['email'] ?? '');
             $tanggal_lahir = $_POST['tanggal_lahir'] ?? null;
 
+            if ($nomor_anggota === '') {
+                header('Location: members.php?error=4');
+                exit();
+            }
+
             if ($username !== '' && $password !== '' && $nama !== '') {
+                $stmt = $conn->prepare('SELECT a.id FROM anggota a WHERE a.nomor_anggota = ?');
+                $stmt->bind_param('s', $nomor_anggota);
+                $stmt->execute();
+                if ($stmt->get_result()->num_rows > 0) {
+                    header('Location: members.php?error=5');
+                    exit();
+                }
+
                 $conn->begin_transaction();
                 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-                $stmt = $conn->prepare('INSERT INTO users (username, password, role_id) VALUES (?, ?, 3)');
+                $stmt = $conn->prepare('INSERT INTO users (username, password, role_id, email_verified_at) VALUES (?, ?, 3, NOW())');
                 $stmt->bind_param('ss', $username, $hashed_password);
                 $stmt->execute();
                 $user_id = $conn->insert_id;
 
                 $stmt = $conn->prepare(
-                    'INSERT INTO anggota (user_id, nama, alamat, no_hp, email, tanggal_lahir)
-                     VALUES (?, ?, ?, ?, ?, ?)'
+                    'INSERT INTO anggota (user_id, nomor_anggota, nama, alamat, no_hp, email, tanggal_lahir)
+                     VALUES (?, ?, ?, ?, ?, ?, ?)'
                 );
-                $stmt->bind_param('isssss', $user_id, $nama, $alamat, $no_hp, $email, $tanggal_lahir);
+                $stmt->bind_param('issssss', $user_id, $nomor_anggota, $nama, $alamat, $no_hp, $email, $tanggal_lahir);
                 $stmt->execute();
 
                 $conn->commit();
@@ -46,13 +70,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $anggota_id = (int) ($_POST['anggota_id'] ?? 0);
             $username = trim($_POST['username'] ?? '');
             $password = trim($_POST['password'] ?? '');
+            $nomor_anggota = trim($_POST['nomor_anggota'] ?? '');
             $nama = trim($_POST['nama'] ?? '');
             $alamat = trim($_POST['alamat'] ?? '');
             $no_hp = trim($_POST['no_hp'] ?? '');
             $email = trim($_POST['email'] ?? '');
             $tanggal_lahir = $_POST['tanggal_lahir'] ?? null;
 
+            if ($nomor_anggota === '') {
+                header('Location: members.php?error=4');
+                exit();
+            }
+
             if ($user_id > 0 && $anggota_id > 0) {
+                $stmt = $conn->prepare('SELECT a.id FROM anggota a WHERE a.nomor_anggota = ? AND a.id <> ?');
+                $stmt->bind_param('si', $nomor_anggota, $anggota_id);
+                $stmt->execute();
+                if ($stmt->get_result()->num_rows > 0) {
+                    header('Location: members.php?error=5');
+                    exit();
+                }
+
                 $conn->begin_transaction();
 
                 $stmt = $conn->prepare('UPDATE users SET username = ?, role_id = 3 WHERE id = ?');
@@ -68,10 +106,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $stmt = $conn->prepare(
                     'UPDATE anggota
-                     SET nama = ?, alamat = ?, no_hp = ?, email = ?, tanggal_lahir = ?
+                     SET nomor_anggota = ?, nama = ?, alamat = ?, no_hp = ?, email = ?, tanggal_lahir = ?
                      WHERE id = ?'
                 );
-                $stmt->bind_param('sssssi', $nama, $alamat, $no_hp, $email, $tanggal_lahir, $anggota_id);
+                $stmt->bind_param('ssssssi', $nomor_anggota, $nama, $alamat, $no_hp, $email, $tanggal_lahir, $anggota_id);
                 $stmt->execute();
 
                 $conn->commit();
@@ -101,14 +139,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $result = $conn->query(
-    'SELECT a.id AS anggota_id, u.id AS user_id, u.username, a.nama, a.alamat, a.no_hp, a.email, a.tanggal_lahir, a.created_at
+    'SELECT a.id AS anggota_id, u.id AS user_id, u.username, a.nomor_anggota, a.nama, a.alamat, a.no_hp, a.email, a.tanggal_lahir, a.created_at,
+            GROUP_CONCAT(DISTINCT p.jenis_kredit ORDER BY p.jenis_kredit SEPARATOR ",") AS jenis_pinjaman,
+            COUNT(DISTINCT p.id) AS total_pengajuan
      FROM anggota a
      JOIN users u ON a.user_id = u.id
+     LEFT JOIN pengajuan p ON p.anggota_id = a.id
+     GROUP BY a.id, u.id, u.username, a.nomor_anggota, a.nama, a.alamat, a.no_hp, a.email, a.tanggal_lahir, a.created_at
      ORDER BY a.id'
 );
 $members = $result->fetch_all(MYSQLI_ASSOC);
 
 $successMessage = '';
+$errorMessage = '';
 if (isset($_GET['success'])) {
     // Pesan status untuk operasi anggota.
     $successMessage = match ((string) $_GET['success']) {
@@ -116,6 +159,14 @@ if (isset($_GET['success'])) {
         '2' => 'Anggota berhasil diperbarui.',
         '3' => 'Anggota berhasil dihapus.',
         default => '',
+    };
+}
+if (isset($_GET['error'])) {
+    $errorMessage = match ((string) $_GET['error']) {
+        '1' => 'Aksi gagal diproses. Silakan cek data input dan coba lagi.',
+        '4' => 'Nomor anggota wajib diisi.',
+        '5' => 'Nomor anggota sudah digunakan oleh anggota lain.',
+        default => 'Aksi gagal diproses.',
     };
 }
 ?>
@@ -136,6 +187,8 @@ if (isset($_GET['success'])) {
         <!-- Notifikasi hasil aksi anggota -->
         <?php if ($successMessage !== ''): ?>
             <div class="alert alert-success border-0 shadow-sm mb-3"><?php echo htmlspecialchars($successMessage); ?></div>
+        <?php elseif ($errorMessage !== ''): ?>
+            <div class="alert alert-danger border-0 shadow-sm mb-3"><?php echo htmlspecialchars($errorMessage); ?></div>
         <?php endif; ?>
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
             <div>
@@ -149,16 +202,29 @@ if (isset($_GET['success'])) {
 
         <div class="card admin-card">
             <div class="card-body">
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-md-4 col-lg-3">
+                        <label for="memberLoanFilter" class="form-label mb-1">Filter Jenis Pinjaman</label>
+                        <select id="memberLoanFilter" class="form-select">
+                            <option value="all">Semua Jenis</option>
+                            <option value="KTA">KTA</option>
+                            <option value="KUR">KUR</option>
+                        </select>
+                    </div>
+                </div>
                 <!-- Tabel data anggota -->
                 <div class="table-responsive">
                     <table id="membersTable" class="table table-striped mb-0 align-middle">
                         <thead>
                             <tr>
                                 <th>ID</th>
+                                <th>Nomor Anggota</th>
                                 <th>Nama Pengguna</th>
                                 <th>Nama</th>
                                 <th>HP</th>
                                 <th>Email</th>
+                                <th>Jenis Pinjaman</th>
+                                <th>Total Pengajuan</th>
                                 <th>Dibuat</th>
                                 <th>Aksi</th>
                             </tr>
@@ -167,17 +233,30 @@ if (isset($_GET['success'])) {
                             <?php foreach ($members as $m): ?>
                             <tr>
                                 <td><?php echo (int) $m['anggota_id']; ?></td>
+                                <td><?php echo htmlspecialchars($m['nomor_anggota'] ?? '-'); ?></td>
                                 <td><?php echo htmlspecialchars($m['username']); ?></td>
                                 <td><?php echo htmlspecialchars($m['nama']); ?></td>
                                 <td><?php echo htmlspecialchars($m['no_hp']); ?></td>
                                 <td><?php echo htmlspecialchars($m['email']); ?></td>
-                                <td><?php echo htmlspecialchars($m['created_at']); ?></td>
+                                <td>
+                                    <?php $loanTypes = memberLoanTypeLabel((string) ($m['jenis_pinjaman'] ?? '')); ?>
+                                    <?php if ($loanTypes === '-'): ?>
+                                        <span class="text-muted">-</span>
+                                    <?php else: ?>
+                                        <?php foreach (explode(', ', $loanTypes) as $type): ?>
+                                            <span class="badge text-bg-<?php echo $type === 'KTA' ? 'primary' : 'success'; ?> me-1"><?php echo htmlspecialchars($type); ?></span>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?php echo (int) ($m['total_pengajuan'] ?? 0); ?></td>
+                                <td><?php echo $m['created_at'] ? date('d-m-Y H:i:s', strtotime($m['created_at'])) : '-'; ?></td>
                                 <td>
                                     <div class="d-flex flex-wrap gap-2">
                                         <button class="btn btn-sm btn-outline-warning"
                                             type="button"
                                             data-user-id="<?php echo (int) $m['user_id']; ?>"
                                             data-anggota-id="<?php echo (int) $m['anggota_id']; ?>"
+                                            data-nomor-anggota="<?php echo htmlspecialchars($m['nomor_anggota'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
                                             data-username="<?php echo htmlspecialchars($m['username'], ENT_QUOTES, 'UTF-8'); ?>"
                                             data-nama="<?php echo htmlspecialchars($m['nama'], ENT_QUOTES, 'UTF-8'); ?>"
                                             data-alamat="<?php echo htmlspecialchars($m['alamat'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
@@ -214,6 +293,10 @@ if (isset($_GET['success'])) {
                 <form method="POST">
                     <div class="modal-body">
                         <div class="row">
+                            <div class="col-12 mb-3">
+                                <label>Nomor Anggota</label>
+                                <input type="text" name="nomor_anggota" class="form-control" required>
+                            </div>
                             <div class="col-md-6 mb-3">
                                 <label>Nama Pengguna</label>
                                 <input type="text" name="username" class="form-control" required>
@@ -267,6 +350,10 @@ if (isset($_GET['success'])) {
                         <input type="hidden" name="user_id" id="edit_user_id">
                         <input type="hidden" name="anggota_id" id="edit_anggota_id">
                         <div class="row">
+                            <div class="col-12 mb-3">
+                                <label>Nomor Anggota</label>
+                                <input type="text" name="nomor_anggota" id="edit_nomor_anggota" class="form-control" required>
+                            </div>
                             <div class="col-md-6 mb-3">
                                 <label>Nama Pengguna</label>
                                 <input type="text" name="username" id="edit_username" class="form-control" required>
@@ -314,12 +401,25 @@ if (isset($_GET['success'])) {
     <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
     <script>
         $(document).ready(function() {
-            $('#membersTable').DataTable();
+            const membersTable = $('#membersTable').DataTable({
+                order: [[0, 'desc']]
+            });
+
+            $('#memberLoanFilter').on('change', function() {
+                const selectedType = $(this).val();
+                if (selectedType === 'all') {
+                    membersTable.column(6).search('').draw();
+                    return;
+                }
+
+                membersTable.column(6).search(selectedType).draw();
+            });
 
             $('button[data-anggota-id]').on('click', function() {
                 editMember(
                     $(this).data('user-id'),
                     $(this).data('anggota-id'),
+                    $(this).data('nomor-anggota'),
                     $(this).data('username'),
                     $(this).data('nama'),
                     $(this).data('alamat'),
@@ -330,9 +430,10 @@ if (isset($_GET['success'])) {
             });
         });
 
-        function editMember(userId, anggotaId, username, nama, alamat, noHp, email, tanggalLahir) {
+        function editMember(userId, anggotaId, nomorAnggota, username, nama, alamat, noHp, email, tanggalLahir) {
             $('#edit_user_id').val(userId);
             $('#edit_anggota_id').val(anggotaId);
+            $('#edit_nomor_anggota').val(nomorAnggota);
             $('#edit_username').val(username);
             $('#edit_nama').val(nama);
             $('#edit_alamat').val(alamat);
@@ -345,4 +446,3 @@ if (isset($_GET['success'])) {
     </script>
 </body>
 </html>
-local

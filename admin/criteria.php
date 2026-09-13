@@ -72,6 +72,7 @@ function criterionTargetClass(string $target): string
 ?>
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -139,6 +140,7 @@ function criterionTargetClass(string $target): string
         }
     </style>
 </head>
+
 <body>
     <?php echo renderAdminHeader('criteria', 'Kelola Kriteria', 'Atur bobot dan jenis kriteria untuk perhitungan SAW.'); ?>
     <div class="container admin-shell">
@@ -151,6 +153,16 @@ function criterionTargetClass(string $target): string
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCriteriaModal">
                 <i class="fas fa-plus"></i> Tambah Kriteria
             </button>
+            <div class="mt-3">
+                <label for="filterJenisKredit" class="form-label fw-semibold">
+                    Filter Jenis Pinjaman
+                </label>
+                <select id="filterJenisKredit" class="form-select" style="max-width: 250px;">
+                    <option value="">Semua Jenis Pinjaman</option>
+                    <option value="KTA">KTA</option>
+                    <option value="KUR">KUR</option>
+                </select>
+            </div>
         </div>
 
         <div class="card criteria-card">
@@ -186,18 +198,17 @@ function criterionTargetClass(string $target): string
                                 </td>
                                 <td>
                                     <div class="d-flex flex-wrap gap-2 criteria-actions">
-                                        <button class="btn btn-sm btn-outline-warning"
-                                            data-id="<?php echo (int) $c['id']; ?>"
-                                            data-nama="<?php echo htmlspecialchars($c['nama'], ENT_QUOTES); ?>"
-                                            data-bobot="<?php echo htmlspecialchars(number_format((float) $c['bobot'], 2, '.', ''), ENT_QUOTES); ?>"
-                                            data-jenis="<?php echo htmlspecialchars($c['jenis'], ENT_QUOTES); ?>"
-                                            data-jenis-kredit="<?php echo htmlspecialchars($c['jenis_kredit'], ENT_QUOTES); ?>"
+                                        <button class="btn btn-sm btn-outline-warning" data-id="<?php echo (int) $c['id']; ?>"
+                                            data-nama="<?php echo htmlspecialchars($c['nama'], ENT_QUOTES); ?>" data-bobot="<?php echo htmlspecialchars(number_format((float) $c['bobot'], 2, '.', ''), ENT_QUOTES); ?>"
+                                            data-jenis="<?php echo htmlspecialchars($c['jenis'], ENT_QUOTES); ?>" data-jenis-kredit="<?php echo htmlspecialchars($c['jenis_kredit'], ENT_QUOTES); ?>"
                                             onclick="editCriteria(this)">
                                             <i class="fas fa-pen-to-square me-1"></i>Edit
                                         </button>
-                                        <form method="POST" class="d-inline" onsubmit="return confirm('Hapus kriteria ini?')">
+                                        <form method="POST" class="d-inline"
+                                            onsubmit="return confirm('Hapus kriteria ini?')">
                                             <input type="hidden" name="id" value="<?php echo (int) $c['id']; ?>">
-                                            <button type="submit" name="delete_criteria" class="btn btn-sm btn-outline-danger">
+                                            <button type="submit" name="delete_criteria"
+                                                class="btn btn-sm btn-outline-danger">
                                                 <i class="fas fa-trash me-1"></i>Hapus
                                             </button>
                                         </form>
@@ -232,7 +243,8 @@ function criterionTargetClass(string $target): string
                 <form method="POST">
                     <div class="modal-body">
                         <div class="alert alert-light border">
-                            Tambahkan kriteria baru dan tentukan apakah termasuk <strong>Keuntungan</strong> atau <strong>Biaya</strong>.
+                            Tambahkan kriteria baru dan tentukan apakah termasuk <strong>Keuntungan</strong> atau
+                            <strong>Biaya</strong>.
                         </div>
                         <div class="mb-3">
                             <label>Nama</label>
@@ -248,7 +260,8 @@ function criterionTargetClass(string $target): string
                         </div>
                         <div class="mb-3">
                             <label>Bobot (0,00 - 1,00)</label>
-                            <input type="number" name="bobot" class="form-control" step="0.01" min="0" max="1" required>
+                            <input type="number" name="bobot" class="form-control" step="0.01" min="0"
+                                max="1" required>
                         </div>
                         <div class="mb-3">
                             <label>Jenis</label>
@@ -294,7 +307,8 @@ function criterionTargetClass(string $target): string
                         </div>
                         <div class="mb-3">
                             <label>Bobot (0,00 - 1,00)</label>
-                            <input type="number" name="bobot" id="edit_bobot" class="form-control" step="0.01" min="0" max="1" required>
+                            <input type="number" name="bobot" id="edit_bobot" class="form-control"
+                                step="0.01" min="0" max="1" required>
                         </div>
                         <div class="mb-3">
                             <label>Jenis</label>
@@ -331,6 +345,18 @@ function criterionTargetClass(string $target): string
             const modal = new bootstrap.Modal(document.getElementById('editCriteriaModal'));
             modal.show();
         }
+        $(document).ready(function() {
+    $('#filterJenisKredit').on('change', function() {
+        const value = $(this).val();
+
+        $('#criteriaTable')
+            .DataTable()
+            .column(2)
+            .search(value)
+            .draw();
+    });
+});
     </script>
 </body>
+
 </html>

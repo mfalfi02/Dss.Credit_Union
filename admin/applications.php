@@ -7,9 +7,19 @@ checkRole('admin');
 require_once '../config/database.php';
 require_once 'ui.php';
 require_once '../function/saw.php';
+require_once '../function/notification.php';
 
 $conn = getDBConnection();
 $saw = new SAWCalculator($conn);
+
+function getLoanLimits(string $jenisKredit): array
+{
+    if ($jenisKredit === 'KUR') {
+        return [5000000, 300000000];
+    }
+
+    return [1000000, 100000000];
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Aksi form untuk update atau hapus pengajuan.
@@ -27,6 +37,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $application = $stmt->get_result()->fetch_assoc();
 
                 if ($application) {
+                    [$minimumPinjaman, $maximumPinjaman] = getLoanLimits($application['jenis_kredit']);
+                    if ($jumlah_pinjaman < $minimumPinjaman) {
+                        header('Location: applications.php?error=2');
+                        exit();
+                    }
+
+                    if ($jumlah_pinjaman > $maximumPinjaman) {
+                        header('Location: applications.php?error=3');
+                        exit();
+                    }
+
                     $detail = json_decode((string) ($application['detail_pinjaman'] ?? '{}'), true);
                     if (!is_array($detail)) {
                         $detail = [];
@@ -49,6 +70,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt = $conn->prepare('INSERT INTO riwayat_pengajuan (pengajuan_id, aksi, dilakukan_oleh) VALUES (?, ?, ?)');
                     $stmt->bind_param('isi', $id, $aksi, $adminId);
                     $stmt->execute();
+
+                    syncAcceptanceNotification($conn, $id);
 
                     $conn->commit();
                     $transactionStarted = false;
@@ -166,6 +189,10 @@ function statusBadgeClass($status)
             <div class="alert alert-success">Pengajuan berhasil diperbarui.</div>
         <?php elseif (isset($_GET['success']) && $_GET['success'] === '2'): ?>
             <div class="alert alert-success">Pengajuan berhasil dihapus.</div>
+        <?php elseif (isset($_GET['error']) && $_GET['error'] === '2'): ?>
+            <div class="alert alert-danger">Jumlah pinjaman belum memenuhi minimum untuk jenis pinjaman yang dipilih.</div>
+        <?php elseif (isset($_GET['error']) && $_GET['error'] === '3'): ?>
+            <div class="alert alert-danger">Jumlah pinjaman melebihi batas maksimum untuk jenis pinjaman yang dipilih.</div>
         <?php elseif (isset($_GET['error'])): ?>
             <div class="alert alert-danger">Aksi gagal diproses. Silakan cek data input dan coba lagi.</div>
         <?php endif; ?>
@@ -177,71 +204,83 @@ function statusBadgeClass($status)
         </div>
         <div class="card admin-card">
             <div class="card-body">
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-md-4 col-lg-3">
+                        <label for="applicationLoanFilter" class="form-label mb-1">Filter Jenis Pinjaman</label>
+                        <select id="applicationLoanFilter" class="form-select">
+                            <option value="all">Semua Jenis</option>
+                            <option value="KTA">KTA</option>
+                            <option value="KUR">KUR</option>
+                        </select>
+                    </div>
+                </div>
         <!-- Tabel utama data pengajuan -->
-        <table id="applicationsTable" class="table table-striped align-middle mb-0">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Anggota</th>
-                    <th>Nama Pengguna</th>
-                    <th>Jenis</th>
-                    <th>Jumlah</th>
-                    <th>Status</th>
-                    <th>Dokumen</th>
-                    <th>Penilaian</th>
-                    <th>Hasil SAW</th>
-                    <th>Detail</th>
-                    <th>Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($applications as $app): ?>
-                <tr>
-                    <td><?php echo (int) $app['id']; ?></td>
-                    <td><?php echo htmlspecialchars($app['nama']); ?></td>
-                    <td><?php echo htmlspecialchars($app['username']); ?></td>
-                    <td><?php echo htmlspecialchars($app['jenis_kredit']); ?></td>
-                    <td>Rp <?php echo number_format((float) $app['jumlah_pinjaman'], 0, ',', '.'); ?></td>
-                    <td>
-                        <span class="badge bg-<?php echo statusBadgeClass($app['status']); ?>">
-                            <?php echo statusLabel($app['status']); ?>
-                        </span>
-                    </td>
-                    <td><?php echo (int) $app['dokumen_count']; ?></td>
-                    <td><?php echo (int) $app['penilaian_count']; ?></td>
-                    <td>
-                        <?php if ($app['skor_terbobot'] !== null): ?>
-                            <div><?php echo number_format((float) $app['skor_terbobot'], 4); ?> (#<?php echo (int) $app['ranking']; ?>)</div>
-                            <small class="text-muted d-block" style="white-space: normal;">
-                                <?php echo number_format((float) $app['persentase_saw'], 2); ?>% -
-                                <?php echo $app['kelayakan'] === 'layak' ? 'Layak Direkomendasikan' : ($app['kelayakan'] === 'tidak_layak' ? 'Belum Layak Direkomendasikan' : 'Belum Ada Rekomendasi'); ?>
-                            </small>
-                        <?php else: ?>
-                            -
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                    <button class="btn btn-sm btn-outline-info"
-                            onclick="showDetail(<?php echo htmlspecialchars(json_encode($app), ENT_QUOTES, 'UTF-8'); ?>)">
-                            <i class="fas fa-eye me-1"></i>Lihat
-                        </button>
-                        <button class="btn btn-sm btn-outline-warning ms-1"
-                            onclick="editApplication(<?php echo htmlspecialchars(json_encode($app), ENT_QUOTES, 'UTF-8'); ?>)">
-                            <i class="fas fa-pen-to-square me-1"></i>Edit
-                        </button>
-                    </td>
-                    <td>
-                        <form method="POST" class="d-inline" onsubmit="return confirm('Hapus pengajuan ini?')">
-                            <input type="hidden" name="id" value="<?php echo (int) $app['id']; ?>">
-                            <button type="submit" name="delete_application" class="btn btn-sm btn-outline-danger">
-                                <i class="fas fa-trash me-1"></i>Hapus
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+                <div class="table-responsive">
+                    <table id="applicationsTable" class="table table-striped align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Anggota</th>
+                                <th>Nama Pengguna</th>
+                                <th>Jenis</th>
+                                <th>Jumlah</th>
+                                <th>Status</th>
+                                <th>Dokumen</th>
+                                <th>Penilaian</th>
+                                <th>Hasil SAW</th>
+                                <th>Detail</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($applications as $app): ?>
+                            <tr>
+                                <td><?php echo (int) $app['id']; ?></td>
+                                <td><?php echo htmlspecialchars($app['nama']); ?></td>
+                                <td><?php echo htmlspecialchars($app['username']); ?></td>
+                                <td><?php echo htmlspecialchars($app['jenis_kredit']); ?></td>
+                                <td>Rp <?php echo number_format((float) $app['jumlah_pinjaman'], 0, ',', '.'); ?></td>
+                                <td>
+                                    <span class="badge bg-<?php echo statusBadgeClass($app['status']); ?>">
+                                        <?php echo statusLabel($app['status']); ?>
+                                    </span>
+                                </td>
+                                <td><?php echo (int) $app['dokumen_count']; ?></td>
+                                <td><?php echo (int) $app['penilaian_count']; ?></td>
+                                <td>
+                                    <?php if ($app['skor_terbobot'] !== null): ?>
+                                        <div><?php echo number_format((float) $app['skor_terbobot'], 4); ?> (#<?php echo (int) $app['ranking']; ?>)</div>
+                                        <small class="text-muted d-block" style="white-space: normal;">
+                                            <?php echo number_format((float) $app['persentase_saw'], 2); ?>% -
+                                            <?php echo $app['kelayakan'] === 'layak' ? 'Layak Direkomendasikan' : ($app['kelayakan'] === 'tidak_layak' ? 'Belum Layak Direkomendasikan' : 'Belum Ada Rekomendasi'); ?>
+                                        </small>
+                                    <?php else: ?>
+                                        -
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                <button class="btn btn-sm btn-outline-info"
+                                        onclick="showDetail(<?php echo htmlspecialchars(json_encode($app), ENT_QUOTES, 'UTF-8'); ?>)">
+                                        <i class="fas fa-eye me-1"></i>Lihat
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-warning ms-1"
+                                        onclick="editApplication(<?php echo htmlspecialchars(json_encode($app), ENT_QUOTES, 'UTF-8'); ?>)">
+                                        <i class="fas fa-pen-to-square me-1"></i>Edit
+                                    </button>
+                                </td>
+                                <td>
+                                    <form method="POST" class="d-inline" onsubmit="return confirm('Hapus pengajuan ini?')">
+                                        <input type="hidden" name="id" value="<?php echo (int) $app['id']; ?>">
+                                        <button type="submit" name="delete_application" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash me-1"></i>Hapus
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -281,7 +320,8 @@ function statusBadgeClass($status)
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Jumlah Pinjaman</label>
-                                <input type="number" name="jumlah_pinjaman" id="edit_jumlah_pinjaman" class="form-control" min="1000" step="1" required>
+                                <input type="number" name="jumlah_pinjaman" id="edit_jumlah_pinjaman" class="form-control" min="1000000" max="100000000" step="1" required>
+                                <div class="form-text" id="edit_jumlah_pinjaman_help">Minimum akan menyesuaikan jenis kredit.</div>
                             </div>
                         </div>
                     </div>
@@ -326,7 +366,19 @@ function statusBadgeClass($status)
     <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
     <script>
         $(document).ready(function() {
-            $('#applicationsTable').DataTable();
+            const applicationsTable = $('#applicationsTable').DataTable({
+                order: [[0, 'desc']]
+            });
+
+            $('#applicationLoanFilter').on('change', function() {
+                const selectedType = $(this).val();
+                if (selectedType === 'all') {
+                    applicationsTable.column(3).search('').draw();
+                    return;
+                }
+
+                applicationsTable.column(3).search(selectedType).draw();
+            });
         });
 
         function escapeHtml(value) {
@@ -345,6 +397,16 @@ function statusBadgeClass($status)
             $('#edit_nama').val(app.nama + ' (' + app.username + ')');
             $('#edit_status').val(app.status);
             $('#edit_jumlah_pinjaman').val(Number(app.jumlah_pinjaman || 0));
+
+            const minLoan = app.jenis_kredit === 'KUR' ? 5000000 : 1000000;
+            const maxLoan = app.jenis_kredit === 'KUR' ? 300000000 : 100000000;
+            $('#edit_jumlah_pinjaman').attr('min', minLoan);
+            $('#edit_jumlah_pinjaman').attr('max', maxLoan);
+            $('#edit_jumlah_pinjaman_help').text(
+                app.jenis_kredit === 'KUR'
+                    ? 'Minimum KUR: Rp 5.000.000. Maksimum KUR: Rp 300.000.000.'
+                    : 'Minimum KTA: Rp 1.000.000. Maksimum KTA: Rp 100.000.000.'
+            );
 
             const modal = new bootstrap.Modal(document.getElementById('editModal'));
             modal.show();

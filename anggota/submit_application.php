@@ -13,6 +13,7 @@ $stmt = $conn->prepare("SELECT * FROM anggota WHERE user_id = ?");
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $member = $stmt->get_result()->fetch_assoc();
+$currentUserName = !empty($member['nama']) ? $member['nama'] : 'Anggota CU';
 
 $selectedJenis = $_GET['jenis'] ?? '';
 if (!in_array($selectedJenis, ['KTA', 'KUR'], true)) {
@@ -27,6 +28,12 @@ if (isset($_GET['error'])) {
             break;
         case '2':
             $errorMessage = 'Masih ada data yang belum lengkap. Silakan lengkapi form sesuai jenis pinjaman yang dipilih.';
+            break;
+        case '3':
+            $errorMessage = 'Jumlah pinjaman belum memenuhi minimum untuk jenis pinjaman yang dipilih.';
+            break;
+        case '4':
+            $errorMessage = 'Jumlah pinjaman melebihi batas maksimum untuk jenis pinjaman yang dipilih.';
             break;
         default:
             $errorMessage = 'Pengajuan gagal diproses.';
@@ -48,106 +55,544 @@ if (!empty($_GET['fields'])) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        :root {
+            --primary: #1769ff;
+            --primary-dark: #0f4fd6;
+            --success: #10b66f;
+            --ink: #10204a;
+            --muted: #65708d;
+            --line: #e6edf7;
+            --surface: rgba(255, 255, 255, 0.94);
+        }
+
+        * {
+            letter-spacing: 0;
+        }
+
         html {
             scroll-behavior: smooth;
         }
 
         body {
+            min-height: 100vh;
+            color: var(--ink);
             background:
-                radial-gradient(circle at top left, rgba(14, 165, 233, 0.12), transparent 28%),
-                radial-gradient(circle at top right, rgba(37, 99, 235, 0.10), transparent 24%),
-                linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%);
+                radial-gradient(circle at 76% 2%, rgba(23, 105, 255, 0.10), transparent 30%),
+                radial-gradient(circle at 18% 18%, rgba(16, 182, 111, 0.08), transparent 28%),
+                linear-gradient(180deg, #f9fbff 0%, #eef4fb 100%);
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+        }
+
+        a {
+            text-decoration: none;
+        }
+
+        .application-layout {
+            display: grid;
+            grid-template-columns: 280px minmax(0, 1fr);
             min-height: 100vh;
         }
 
-        .topbar {
-            background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
-            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+        .sidebar {
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            padding: 28px 20px;
+            background: rgba(255, 255, 255, 0.88);
+            border-right: 1px solid var(--line);
+            backdrop-filter: blur(18px);
         }
 
-        .topbar .nav-link,
-        .topbar .navbar-brand {
-            color: #fff !important;
+        .brand-mark,
+        .nav-icon,
+        .user-avatar,
+        .choice-icon,
+        .benefit-check,
+        .step-number,
+        .notice-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
         }
 
-        .hero-card,
-        .panel-card,
-        .choice-card {
-            border: 0;
-            border-radius: 1.25rem;
-            box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
-        }
-
-        .hero-card {
-            background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+        .brand-mark {
+            width: 46px;
+            height: 46px;
+            border-radius: 10px;
             color: #fff;
-            overflow: hidden;
+            background: linear-gradient(135deg, var(--primary), #2d9bff);
+            box-shadow: 0 12px 24px rgba(23, 105, 255, 0.24);
+        }
+
+        .brand-title {
+            font-size: 1.08rem;
+            font-weight: 850;
+            margin: 0;
+        }
+
+        .brand-subtitle,
+        .small-muted {
+            color: var(--muted);
+            font-size: .83rem;
+        }
+
+        .nav-section {
+            margin-top: 28px;
+        }
+
+        .nav-caption {
+            color: #7e89a5;
+            font-size: .72rem;
+            font-weight: 850;
+            margin: 0 0 10px 12px;
+            text-transform: uppercase;
+        }
+
+        .side-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-height: 46px;
+            padding: 0 14px;
+            border-radius: 8px;
+            color: #26375f;
+            font-size: .93rem;
+            font-weight: 700;
+        }
+
+        .nav-icon {
+            width: 20px;
+            color: #5c6c91;
+        }
+
+        .side-link.active {
+            color: #fff;
+            background: linear-gradient(135deg, var(--primary), #0f7bff);
+            box-shadow: 0 14px 26px rgba(23, 105, 255, 0.24);
+        }
+
+        .side-link.active .nav-icon {
+            color: #fff;
+        }
+
+        .help-card {
+            margin-top: auto;
+            padding: 18px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #edf5ff, #deecff);
+            border: 1px solid #d7e7ff;
+        }
+
+        .main-area {
+            min-width: 0;
+        }
+
+        .app-topbar {
+            height: 86px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            padding: 0 38px;
+            background: rgba(255, 255, 255, 0.84);
+            border-bottom: 1px solid var(--line);
+            backdrop-filter: blur(18px);
+        }
+
+        .menu-button,
+        .notification-button {
+            width: 42px;
+            height: 42px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            color: var(--ink);
+            background: #fff;
+            border: 1px solid var(--line);
+        }
+
+        .notification-button {
             position: relative;
         }
 
-        .hero-card::after {
-            content: "";
+        .notification-badge {
             position: absolute;
-            inset: auto -12% -38% auto;
-            width: 260px;
-            height: 260px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.08);
+            top: -6px;
+            right: -4px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 999px;
+            color: #fff;
+            background: #ef233c;
+            font-size: .68rem;
+            font-weight: 850;
+            line-height: 18px;
         }
 
-        .hero-badge {
-            display: inline-flex;
+        .user-chip {
+            display: flex;
             align-items: center;
-            gap: .45rem;
-            padding: .4rem .85rem;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.12);
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            font-size: .875rem;
+            gap: 12px;
+            padding-left: 16px;
+            border-left: 1px solid var(--line);
+        }
+
+        .user-avatar {
+            position: relative;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            color: #fff;
+            background: linear-gradient(135deg, var(--primary), #7aa7ff);
+            font-weight: 850;
+        }
+
+        .user-avatar::after {
+            content: "";
+            position: absolute;
+            right: 1px;
+            bottom: 3px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #16c172;
+            border: 2px solid #fff;
+        }
+
+        .content-wrap {
+            padding: 30px 34px 44px;
+        }
+
+        .breadcrumb-line {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #667498;
+            font-size: .9rem;
+            margin-bottom: 14px;
+        }
+
+        .breadcrumb-line span:last-child {
+            color: var(--primary);
+            font-weight: 800;
+        }
+
+        .page-title {
+            font-size: clamp(1.75rem, 3vw, 2.35rem);
+            font-weight: 850;
+            margin: 0 0 6px;
+        }
+
+        .page-subtitle {
+            color: #506080;
+            margin: 0;
+        }
+
+        .application-stepper {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0;
+            max-width: 1180px;
+            margin: 28px auto 26px;
+        }
+
+        .step-item {
+            position: relative;
+            display: grid;
+            justify-items: center;
+            gap: 10px;
+            color: #66718f;
+            font-size: .88rem;
+            font-weight: 750;
+            text-align: center;
+        }
+
+        .step-item::before {
+            content: "";
+            position: absolute;
+            top: 22px;
+            left: 0;
+            width: 50%;
+            height: 2px;
+            background: #cfd8e7;
+            transform: translateX(-50%);
+        }
+
+        .step-item::after {
+            content: "";
+            position: absolute;
+            top: 22px;
+            left: 50%;
+            width: 100%;
+            height: 2px;
+            background: #cfd8e7;
+            z-index: 0;
+        }
+
+        .step-item:first-child::before,
+        .step-item:last-child::after {
+            display: none;
+        }
+
+        .step-item.active {
+            color: var(--primary);
+        }
+
+        .step-item.active::after {
+            background: var(--primary);
+        }
+
+        .step-item.done {
+            color: #0b9f62;
+        }
+
+        .step-item.done::after {
+            background: #0b9f62;
+        }
+
+        .step-number {
+            position: relative;
+            z-index: 1;
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            color: #4c5875;
+            background: #fff;
+            border: 2px solid #cfd8e7;
+            box-shadow: 0 10px 22px rgba(42, 64, 102, 0.08);
+            font-size: 1.02rem;
+            font-weight: 850;
+        }
+
+        .step-item.active .step-number {
+            color: #fff;
+            border-color: var(--primary);
+            background: linear-gradient(135deg, var(--primary), #0f7bff);
+            box-shadow: 0 12px 24px rgba(23, 105, 255, 0.28);
+        }
+
+        .step-item.done .step-number {
+            color: #fff;
+            border-color: #0b9f62;
+            background: linear-gradient(135deg, #0b9f62, #18c47f);
+        }
+
+        .selection-panel,
+        .panel-card {
+            border: 1px solid rgba(222, 232, 246, 0.9);
+            border-radius: 8px;
+            background: var(--surface);
+            box-shadow: 0 18px 46px rgba(34, 58, 95, 0.08);
+        }
+
+        .selection-panel {
+            padding: 34px;
+            margin-bottom: 26px;
+        }
+
+        .section-title {
+            color: var(--ink);
+            font-weight: 850;
         }
 
         .choice-card {
-            background: #fff;
-            transition: transform .2s ease, box-shadow .2s ease;
+            position: relative;
             height: 100%;
             width: 100%;
-            border: 0;
+            min-height: 360px;
+            padding: 28px;
             text-align: left;
             appearance: none;
             cursor: pointer;
+            border-radius: 8px;
+            background: #fff;
+            transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
         }
 
         .choice-card:hover {
             transform: translateY(-3px);
-            box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+            box-shadow: 0 18px 36px rgba(15, 23, 42, 0.11);
         }
 
         .choice-card.active {
-            border: 2px solid rgba(37, 99, 235, 0.35);
-            box-shadow: 0 18px 40px rgba(37, 99, 235, 0.16);
+            box-shadow: 0 18px 40px rgba(23, 105, 255, 0.16);
+        }
+
+        .choice-card.kta-card {
+            border: 1.5px solid rgba(23, 105, 255, 0.45);
+        }
+
+        .choice-card.kur-card {
+            border: 1.5px solid rgba(16, 182, 111, 0.45);
         }
 
         .choice-icon {
-            width: 56px;
-            height: 56px;
-            border-radius: 16px;
-            display: inline-flex;
+            width: 66px;
+            height: 66px;
+            border-radius: 14px;
+            color: #fff;
+            font-size: 1.3rem;
+        }
+
+        .kta-icon {
+            background: linear-gradient(135deg, #1769ff, #0f7bff);
+        }
+
+        .kur-icon {
+            background: linear-gradient(135deg, #0ba85d, #09c37a);
+        }
+
+        .loan-art {
+            position: absolute;
+            top: 32px;
+            right: 32px;
+            width: 120px;
+            height: 96px;
+        }
+
+        .money-stack,
+        .shop-art {
+            position: absolute;
+            inset: 0;
+        }
+
+        .money-stack::before,
+        .money-stack::after {
+            content: "";
+            position: absolute;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #6eb5ff, #1769ff);
+            box-shadow: 0 12px 20px rgba(23, 105, 255, 0.22);
+        }
+
+        .money-stack::before {
+            width: 76px;
+            height: 52px;
+            left: 12px;
+            top: 28px;
+        }
+
+        .money-stack::after {
+            width: 58px;
+            height: 58px;
+            right: 8px;
+            top: 18px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ffbd38, #ff8d20);
+            border: 5px solid rgba(255, 255, 255, 0.7);
+        }
+
+        .shop-art::before {
+            content: "";
+            position: absolute;
+            left: 22px;
+            bottom: 8px;
+            width: 76px;
+            height: 58px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #28c783, #079e5d);
+            box-shadow: 0 12px 20px rgba(11, 168, 93, 0.2);
+        }
+
+        .shop-art::after {
+            content: "";
+            position: absolute;
+            left: 14px;
+            top: 10px;
+            width: 92px;
+            height: 28px;
+            border-radius: 8px 8px 14px 14px;
+            background: repeating-linear-gradient(90deg, #12b96f 0 18px, #b8f2d4 18px 36px);
+            box-shadow: 0 8px 15px rgba(11, 168, 93, 0.18);
+        }
+
+        .coin-row {
+            position: absolute;
+            right: 3px;
+            bottom: 4px;
+            width: 42px;
+            height: 34px;
+            border-radius: 50%;
+            background: linear-gradient(180deg, #ffd465, #f3a51e);
+            box-shadow: 0 -11px 0 -4px #ffd465, 0 -22px 0 -8px #f3a51e;
+        }
+
+        .benefit-list {
+            display: grid;
+            gap: 13px;
+            padding: 18px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, rgba(239, 246, 255, 0.95), rgba(245, 249, 255, 0.92));
+            border: 1px solid #e4edf9;
+        }
+
+        .kur-card .benefit-list {
+            background: linear-gradient(135deg, rgba(239, 253, 246, 0.95), rgba(246, 252, 249, 0.92));
+        }
+
+        .benefit-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #23345f;
+            font-size: .93rem;
+        }
+
+        .benefit-check {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            color: #fff;
+            background: var(--primary);
+            font-size: .72rem;
+        }
+
+        .kur-card .benefit-check {
+            background: var(--success);
+        }
+
+        .choice-cta {
+            min-height: 52px;
+            display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.25rem;
+            gap: 10px;
+            margin-top: 18px;
+            border-radius: 8px;
             color: #fff;
+            font-weight: 850;
         }
 
-        .kta-icon { background: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%); }
-        .kur-icon { background: linear-gradient(135deg, #059669 0%, #10b981 100%); }
-
-        .panel-card {
-            background: #fff;
+        .kta-card .choice-cta {
+            background: linear-gradient(135deg, var(--primary), #0f7bff);
         }
 
-        .section-title {
-            color: #0f172a;
-            font-weight: 800;
+        .kur-card .choice-cta {
+            background: linear-gradient(135deg, #0ba85d, #08bc74);
+        }
+
+        .comparison-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            max-width: 760px;
+            margin: 34px auto 0;
+            padding: 18px 22px;
+            border-radius: 8px;
+            background: #f7faff;
+            border: 1px solid var(--line);
+        }
+
+        .notice-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            color: var(--primary);
+            background: #e8f1ff;
         }
 
         .form-section {
@@ -164,6 +609,40 @@ if (!empty($_GET['fields'])) {
             opacity: 1;
             transform: translateY(0);
             pointer-events: auto;
+        }
+
+        .wizard-pane {
+            display: none;
+        }
+
+        .wizard-pane.active {
+            display: block;
+        }
+
+        .review-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .review-item {
+            padding: 14px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #f8fbff;
+        }
+
+        .review-label {
+            color: var(--muted);
+            font-size: .78rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .review-value {
+            color: var(--ink);
+            font-weight: 800;
+            word-break: break-word;
         }
 
         .field-invalid .form-label {
@@ -185,79 +664,265 @@ if (!empty($_GET['fields'])) {
             color: #dc3545;
             font-size: .875rem;
         }
+
+        @media (max-width: 1199.98px) {
+            .application-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+                height: auto;
+                padding: 18px;
+            }
+
+            .sidebar-nav,
+            .help-card {
+                display: none;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .app-topbar {
+                height: auto;
+                align-items: flex-start;
+                padding: 18px;
+            }
+
+            .user-chip {
+                padding-left: 0;
+                border-left: 0;
+            }
+
+            .content-wrap {
+                padding: 22px 16px 34px;
+            }
+
+            .application-stepper {
+                grid-template-columns: 1fr;
+                gap: 14px;
+                margin: 22px 0;
+            }
+
+            .step-item {
+                grid-template-columns: 46px minmax(0, 1fr);
+                justify-items: start;
+                text-align: left;
+            }
+
+            .step-item::before,
+            .step-item::after {
+                display: none;
+            }
+
+            .selection-panel {
+                padding: 22px;
+            }
+
+            .choice-card {
+                min-height: 0;
+                padding: 22px;
+            }
+
+            .loan-art {
+                position: relative;
+                top: auto;
+                right: auto;
+                margin: 18px 0 4px;
+            }
+
+            .comparison-box {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .review-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg topbar navbar-dark">
-        <div class="container">
-            <a class="navbar-brand fw-semibold" href="dashboard.php">
-                <i class="fas fa-user-group me-2"></i>Dasbor Anggota
-            </a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="../proses/logout.php">Logout</a>
-            </div>
-        </div>
-    </nav>
-    <main class="container py-4 py-lg-5">
-        <section class="card hero-card mb-4">
-            <div class="card-body p-4 p-lg-5 position-relative">
-                <div class="row align-items-center g-4">
-                    <div class="col-lg-8">
-                        <div class="hero-badge mb-3">
-                            <i class="fas fa-wand-magic-sparkles"></i>
-                            <span>Langkah pengajuan yang mudah</span>
-                        </div>
-                        <h1 class="display-6 fw-bold mb-3">Form Pengajuan Kredit</h1>
-                        <p class="lead mb-0 text-white-75" style="max-width: 46rem;">
-                            Pilih jenis pinjaman dulu, lalu isi data pribadi atau data usaha sesuai kebutuhan. Tampilan akan menyesuaikan otomatis agar lebih mudah dipahami.
-                        </p>
-                    </div>
-                    <div class="col-lg-4 text-lg-end">
-                        <a href="status.php" class="btn btn-light btn-lg">
-                            <i class="fas fa-list-check me-2"></i>Lihat Status Pengajuan
-                        </a>
-                    </div>
+    <div class="application-layout">
+        <aside class="sidebar d-flex flex-column">
+            <div class="d-flex align-items-center gap-3">
+                <div class="brand-mark"><i class="fas fa-user-shield"></i></div>
+                <div>
+                    <p class="brand-title">SPK Kredit</p>
+                    <div class="brand-subtitle">CU Lintang Tipo Jeruju</div>
                 </div>
             </div>
-        </section>
 
-        <div class="row g-4 justify-content-center mb-4">
-            <div class="col-12">
-                <div class="alert alert-light border text-center mb-0">
-                    Pilih salah satu kartu di bawah untuk menampilkan form pengajuan di bagian bawah.
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <p class="nav-caption">Utama</p>
+                    <a href="dashboard.php" class="side-link">
+                        <span class="nav-icon"><i class="fas fa-house"></i></span>
+                        <span>Dashboard</span>
+                    </a>
                 </div>
+                <div class="nav-section">
+                    <p class="nav-caption">Pengajuan</p>
+                    <a href="submit_application.php" class="side-link active">
+                        <span class="nav-icon"><i class="fas fa-circle-plus"></i></span>
+                        <span>Ajukan Pinjaman</span>
+                    </a>
+                    <a href="status.php" class="side-link">
+                        <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
+                        <span>Status Pengajuan</span>
+                    </a>
+                </div>
+                <div class="nav-section">
+                    <p class="nav-caption">Akun</p>
+                    <a href="../proses/logout.php" class="side-link">
+                        <span class="nav-icon"><i class="fas fa-right-from-bracket"></i></span>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </nav>
+
+            <div class="help-card">
+                <div class="fw-bold mb-1">Butuh Bantuan?</div>
+                <p class="small-muted mb-3">Hubungi petugas CU untuk bantuan pengajuan.</p>
+                <a href="status.php" class="btn btn-sm btn-primary">Cek Status</a>
             </div>
-            <?php if ($errorMessage !== '' && empty($errorFields)): ?>
-                <div class="col-12">
+        </aside>
+
+        <div class="main-area">
+            <header class="app-topbar">
+                <a class="menu-button" href="dashboard.php" aria-label="Kembali ke dashboard">
+                    <i class="fas fa-bars"></i>
+                </a>
+                <div class="d-flex align-items-center gap-3 ms-auto">
+                    <a class="notification-button" href="status.php" aria-label="Lihat status pengajuan">
+                        <i class="fas fa-bell"></i>
+                        <?php if ($errorMessage !== ''): ?>
+                            <span class="notification-badge">!</span>
+                        <?php endif; ?>
+                    </a>
+                    <div class="user-chip">
+                        <div class="user-avatar"><?php echo htmlspecialchars(strtoupper(substr($currentUserName, 0, 1))); ?></div>
+                        <div>
+                            <div class="fw-bold"><?php echo htmlspecialchars($currentUserName); ?></div>
+                            <div class="small text-success fw-semibold">Anggota Aktif</div>
+                        </div>
+                        <i class="fas fa-chevron-down small-muted"></i>
+                    </div>
+                </div>
+            </header>
+
+            <main class="content-wrap">
+                <div class="breadcrumb-line">
+                    <a href="dashboard.php" class="text-muted">Dashboard</a>
+                    <i class="fas fa-chevron-right small"></i>
+                    <span>Pengajuan</span>
+                    <i class="fas fa-chevron-right small"></i>
+                    <span>Ajukan Pinjaman</span>
+                </div>
+
+                <div>
+                    <h1 class="page-title">Ajukan Pengajuan Kredit</h1>
+                    <p class="page-subtitle">Pilih jenis pinjaman yang sesuai dengan kebutuhan Anda.</p>
+                </div>
+
+                <div class="application-stepper">
+                    <div class="step-item active" data-step="1">
+                        <span class="step-number">1</span>
+                        <span>Pilih Jenis Pinjaman</span>
+                    </div>
+                    <div class="step-item" data-step="2">
+                        <span class="step-number">2</span>
+                        <span>Isi Data & Informasi</span>
+                    </div>
+                    <div class="step-item" data-step="3">
+                        <span class="step-number">3</span>
+                        <span>Unggah Dokumen</span>
+                    </div>
+                    <div class="step-item" data-step="4">
+                        <span class="step-number">4</span>
+                        <span>Review & Kirim</span>
+                    </div>
+                </div>
+
+                <?php if ($errorMessage !== '' && empty($errorFields)): ?>
                     <div class="alert alert-danger border-0 shadow-sm mb-0">
                         <i class="fas fa-triangle-exclamation me-2"></i><?php echo htmlspecialchars($errorMessage); ?>
                     </div>
-                </div>
-            <?php endif; ?>
-            <div class="col-md-6 col-lg-4">
-                <button type="button" class="choice-card p-4 w-100 text-start <?php echo $selectedJenis === 'KTA' ? 'active' : ''; ?>" data-jenis="KTA">
-                        <div class="d-flex align-items-start justify-content-between mb-3">
-                            <div class="choice-icon kta-icon"><i class="fas fa-id-card"></i></div>
-                            <span class="badge text-bg-primary">Pribadi</span>
-                        </div>
-                        <h4 class="section-title mb-2">KTA</h4>
-                        <p class="text-muted mb-0">Fokus pada kemampuan bayar pribadi dan dokumen pendukung yang relevan.</p>
-                </button>
-            </div>
-            <div class="col-md-6 col-lg-4">
-                <button type="button" class="choice-card p-4 w-100 text-start <?php echo $selectedJenis === 'KUR' ? 'active' : ''; ?>" data-jenis="KUR">
-                        <div class="d-flex align-items-start justify-content-between mb-3">
-                            <div class="choice-icon kur-icon"><i class="fas fa-store"></i></div>
-                            <span class="badge text-bg-success">Usaha</span>
-                        </div>
-                        <h4 class="section-title mb-2">KUR</h4>
-                        <p class="text-muted mb-0">Fokus pada usaha, omzet, laba, dan kelengkapan legalitas usaha.</p>
-                </button>
-            </div>
-        </div>
+                <?php endif; ?>
 
-        <div class="form-section row justify-content-center <?php echo $selectedJenis !== '' ? 'is-visible' : ''; ?>" id="formSection">
-            <div class="col-lg-10">
+                <section class="selection-panel" id="loanSelection">
+                    <div class="text-center mb-4">
+                        <h2 class="section-title fs-4 mb-2">Pilih jenis pinjaman yang ingin diajukan</h2>
+                        <p class="page-subtitle">Silakan pilih salah satu jenis pinjaman di bawah ini untuk melanjutkan proses pengajuan.</p>
+                    </div>
+
+                    <div class="alert alert-danger d-none mb-4" id="selectionAlert">
+                        <i class="fas fa-triangle-exclamation me-2"></i>Silakan pilih KTA atau KUR terlebih dahulu sebelum lanjut.
+                    </div>
+
+                    <div class="row g-4 justify-content-center">
+                        <div class="col-xl-5 col-lg-6">
+                            <button type="button" class="choice-card kta-card <?php echo $selectedJenis === 'KTA' ? 'active' : ''; ?>" data-jenis="KTA">
+                                <div class="loan-art" aria-hidden="true">
+                                    <div class="money-stack"></div>
+                                </div>
+                                <div class="d-flex align-items-center gap-3 mb-4">
+                                    <div class="choice-icon kta-icon"><i class="fas fa-user"></i></div>
+                                    <div>
+                                        <h3 class="section-title fs-2 mb-1">KTA</h3>
+                                        <div class="fw-bold">Kredit Tanpa Agunan</div>
+                                    </div>
+                                </div>
+                                <p class="text-muted mb-4">Kredit tanpa agunan untuk berbagai kebutuhan pribadi Anda dengan proses cepat dan mudah.</p>
+                                <div class="benefit-list">
+                                    <div class="benefit-item"><span class="benefit-check"><i class="fas fa-check"></i></span><span>Tanpa agunan / jaminan</span></div>
+                                    <div class="benefit-item"><span class="benefit-check"><i class="fas fa-check"></i></span><span>Data penilaian berbasis kemampuan bayar</span></div>
+                                    <div class="benefit-item"><span class="benefit-check"><i class="fas fa-check"></i></span><span>Dokumen KTP dan bukti penghasilan</span></div>
+                                    <div class="benefit-item"><span class="benefit-check"><i class="fas fa-check"></i></span><span>Cocok untuk kebutuhan pribadi</span></div>
+                                </div>
+                                <div class="choice-cta">Pilih KTA <i class="fas fa-arrow-right"></i></div>
+                            </button>
+                        </div>
+
+                        <div class="col-xl-5 col-lg-6">
+                            <button type="button" class="choice-card kur-card <?php echo $selectedJenis === 'KUR' ? 'active' : ''; ?>" data-jenis="KUR">
+                                <div class="loan-art" aria-hidden="true">
+                                    <div class="shop-art"></div>
+                                    <div class="coin-row"></div>
+                                </div>
+                                <div class="d-flex align-items-center gap-3 mb-4">
+                                    <div class="choice-icon kur-icon"><i class="fas fa-store"></i></div>
+                                    <div>
+                                        <h3 class="section-title fs-2 mb-1">KUR</h3>
+                                        <div class="fw-bold">Kredit Usaha Rakyat</div>
+                                    </div>
+                                </div>
+                                <p class="text-muted mb-4">Kredit untuk modal usaha dengan data usaha, omzet, laba, dan legalitas sebagai dasar penilaian.</p>
+                                <div class="benefit-list">
+                                    <div class="benefit-item"><span class="benefit-check"><i class="fas fa-check"></i></span><span>Untuk modal kerja atau investasi usaha</span></div>
+                                    <div class="benefit-item"><span class="benefit-check"><i class="fas fa-check"></i></span><span>Data usaha dan omzet ikut dinilai</span></div>
+                                    <div class="benefit-item"><span class="benefit-check"><i class="fas fa-check"></i></span><span>Dokumen KTP, foto usaha, dan legalitas</span></div>
+                                    <div class="benefit-item"><span class="benefit-check"><i class="fas fa-check"></i></span><span>Mendukung pengembangan UMKM</span></div>
+                                </div>
+                                <div class="choice-cta">Pilih KUR <i class="fas fa-arrow-right"></i></div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="comparison-box">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="notice-icon"><i class="fas fa-circle-info"></i></div>
+                            <div>
+                                <div class="fw-bold">Masih bingung memilih jenis pinjaman?</div>
+                                <div class="small-muted">KTA untuk kebutuhan pribadi, KUR untuk kebutuhan usaha.</div>
+                            </div>
+                        </div>
+                        <a href="status.php" class="btn btn-outline-primary">Lihat Status</a>
+                    </div>
+                </section>
+
+                <div class="form-section row justify-content-center <?php echo $selectedJenis !== '' ? 'is-visible' : ''; ?>" id="formSection">
+                    <div class="col-xl-10">
                 <form action="../proses/submit_application.php" method="POST" enctype="multipart/form-data" novalidate class="card panel-card">
                     <div class="card-body p-4 p-lg-5">
                         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
@@ -274,6 +939,7 @@ if (!empty($_GET['fields'])) {
 
                         <input type="hidden" name="jenis_kredit" id="jenis_kredit" value="<?php echo htmlspecialchars($selectedJenis); ?>">
 
+                        <div class="wizard-pane active" data-pane="data">
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label class="form-label">Jenis Kredit</label>
@@ -283,7 +949,9 @@ if (!empty($_GET['fields'])) {
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Jumlah Pinjaman</label>
-                                <input type="number" name="jumlah_pinjaman" class="form-control" min="100000" step="10000" required>
+                                <input type="number" name="jumlah_pinjaman" class="form-control" min="1000000" max="300000000" step="10000" required>
+                                <div class="form-text" id="jumlahPinjamanHelp">Minimum pinjaman akan menyesuaikan jenis yang dipilih.</div>
+                                <div class="small mt-1" id="jumlahPinjamanStatus"></div>
                             </div>
                             <div class="col-md-4">
                                 <div class="alert alert-primary mb-0 py-3">
@@ -408,6 +1076,9 @@ if (!empty($_GET['fields'])) {
                             </div>
                         </div>
 
+                        </div>
+
+                        <div class="wizard-pane" data-pane="docs">
                         <div class="mt-4">
                             <div class="d-flex align-items-center justify-content-between mb-3">
                                 <div>
@@ -472,15 +1143,39 @@ if (!empty($_GET['fields'])) {
                             </div>
                         </div>
 
+                        </div>
+                        </div>
+
+                        <div class="wizard-pane" data-pane="review">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <div>
+                                    <h5 class="mb-1">Review Pengajuan</h5>
+                                    <p class="text-muted mb-0">Periksa kembali ringkasan sebelum pengajuan dikirim.</p>
+                                </div>
+                                <span class="badge bg-primary">Siap Kirim</span>
+                            </div>
+                            <div class="review-grid" id="reviewGrid"></div>
+                            <div class="alert alert-info mt-4 mb-0">
+                                Pastikan data dan dokumen sudah sesuai. Setelah dikirim, pengajuan akan diproses oleh petugas.
+                            </div>
+                        </div>
+
                         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mt-4">
-                            <a href="dashboard.php" class="btn btn-outline-secondary">Kembali</a>
-                            <button type="submit" class="btn btn-primary px-4">Ajukan Pengajuan</button>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <a href="dashboard.php" class="btn btn-outline-secondary" id="backToDashboard">Kembali</a>
+                                <button type="button" class="btn btn-outline-secondary d-none" id="prevWizard">Sebelumnya</button>
+                            </div>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="button" class="btn btn-primary px-4" id="nextWizard">Lanjut</button>
+                                <button type="submit" class="btn btn-success px-4 d-none" id="submitWizard">Kirim Pengajuan</button>
+                            </div>
                         </div>
                     </div>
                 </form>
             </div>
-        </div>
-    </main>
+                </div>
+        </main>
+    </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const jenisInfo = document.getElementById('jenisInfo');
@@ -510,7 +1205,20 @@ if (!empty($_GET['fields'])) {
         const ktaKartuKeluargaInput = ktaDocs.querySelector('input[name="kartu_keluarga"]');
         const choiceCards = document.querySelectorAll('.choice-card[data-jenis]');
         const pengajuanForm = document.querySelector('form[action="../proses/submit_application.php"]');
+        const loanSelection = document.getElementById('loanSelection');
+        const stepItems = document.querySelectorAll('.step-item[data-step]');
+        const wizardPanes = document.querySelectorAll('.wizard-pane[data-pane]');
+        const prevWizard = document.getElementById('prevWizard');
+        const nextWizard = document.getElementById('nextWizard');
+        const submitWizard = document.getElementById('submitWizard');
+        const backToDashboard = document.getElementById('backToDashboard');
+        const reviewGrid = document.getElementById('reviewGrid');
+        const jumlahPinjamanInput = pengajuanForm.querySelector('input[name="jumlah_pinjaman"]');
+        const jumlahPinjamanHelp = document.getElementById('jumlahPinjamanHelp');
+        const jumlahPinjamanStatus = document.getElementById('jumlahPinjamanStatus');
+        const selectionAlert = document.getElementById('selectionAlert');
         const serverErrorFields = <?php echo json_encode($errorFields, JSON_UNESCAPED_UNICODE); ?>;
+        let currentWizardStep = jenisSelect.value ? 2 : 1;
 
         function getFieldWrapper(input) {
             return input.closest('.col-md-4, .col-md-6, .col-12, .col-lg-4');
@@ -534,6 +1242,18 @@ if (!empty($_GET['fields'])) {
             const feedback = wrapper.querySelector('.field-feedback');
             if (feedback) {
                 feedback.remove();
+            }
+        }
+
+        function clearSelectionAlert() {
+            if (selectionAlert) {
+                selectionAlert.classList.add('d-none');
+            }
+        }
+
+        function showSelectionAlert() {
+            if (selectionAlert) {
+                selectionAlert.classList.remove('d-none');
             }
         }
 
@@ -561,9 +1281,9 @@ if (!empty($_GET['fields'])) {
             feedback.textContent = message || 'Wajib diisi.';
         }
 
-        function validateRequiredFields() {
-            const requiredFields = Array.from(pengajuanForm.querySelectorAll('input[required], select[required], textarea[required]'))
-                .filter((field) => !field.disabled && field.offsetParent !== null);
+        function validateRequiredFields(scope = pengajuanForm, visibleOnly = true) {
+            const requiredFields = Array.from(scope.querySelectorAll('input[required], select[required], textarea[required]'))
+                .filter((field) => !field.disabled && (!visibleOnly || field.offsetParent !== null));
 
             let firstInvalid = null;
 
@@ -593,6 +1313,93 @@ if (!empty($_GET['fields'])) {
             return true;
         }
 
+        function getLoanLimits(jenis) {
+            if (jenis === 'KUR') {
+                return { minimum: 5000000, maximum: 300000000 };
+            }
+
+            return { minimum: 1000000, maximum: 100000000 };
+        }
+
+        function updateJumlahPinjamanConstraint() {
+            const jenis = jenisSelect.value;
+            const limits = getLoanLimits(jenis);
+            jumlahPinjamanInput.min = String(limits.minimum);
+            jumlahPinjamanInput.max = String(limits.maximum);
+            jumlahPinjamanInput.setAttribute('aria-describedby', 'jumlahPinjamanHelp');
+
+            if (jenis === 'KTA') {
+                jumlahPinjamanHelp.textContent = 'Minimum KTA: Rp 1.000.000. Maksimum KTA: Rp 100.000.000.';
+            } else if (jenis === 'KUR') {
+                jumlahPinjamanHelp.textContent = 'Minimum KUR: Rp 5.000.000. Maksimum KUR: Rp 300.000.000.';
+            } else {
+                jumlahPinjamanHelp.textContent = 'Minimum pinjaman akan menyesuaikan jenis yang dipilih.';
+            }
+
+            updateJumlahPinjamanStatus();
+        }
+
+        function updateJumlahPinjamanStatus() {
+            if (!jumlahPinjamanStatus) {
+                return;
+            }
+
+            const jenis = jenisSelect.value;
+            const limits = getLoanLimits(jenis);
+            const amount = Number(jumlahPinjamanInput.value || 0);
+
+            if (!jenis || amount <= 0) {
+                jumlahPinjamanStatus.textContent = '';
+                jumlahPinjamanStatus.className = 'small mt-1';
+                return;
+            }
+
+            if (amount > limits.maximum) {
+                const labelText = jenis === 'KUR' ? 'KUR' : 'KTA';
+                jumlahPinjamanStatus.textContent = `Jumlah pinjaman melebihi maksimum Rp ${limits.maximum.toLocaleString('id-ID')} untuk ${labelText}.`;
+                jumlahPinjamanStatus.className = 'small mt-1 text-danger fw-semibold';
+                return;
+            }
+
+            if (amount < limits.minimum) {
+                const labelText = jenis === 'KUR' ? 'KUR' : 'KTA';
+                jumlahPinjamanStatus.textContent = `Jumlah pinjaman masih di bawah minimum Rp ${limits.minimum.toLocaleString('id-ID')} untuk ${labelText}.`;
+                jumlahPinjamanStatus.className = 'small mt-1 text-warning fw-semibold';
+                return;
+            }
+
+            jumlahPinjamanStatus.textContent = `Jumlah pinjaman masih dalam batas ${jenis === 'KUR' ? 'KUR' : 'KTA'}.`;
+            jumlahPinjamanStatus.className = 'small mt-1 text-success fw-semibold';
+        }
+
+        function validateLoanAmount() {
+            const jenis = jenisSelect.value;
+            const limits = getLoanLimits(jenis);
+            const amount = Number(jumlahPinjamanInput.value || 0);
+
+            clearFieldState(jumlahPinjamanInput);
+
+            if (!jenis || amount <= 0) {
+                return true;
+            }
+
+            if (amount < limits.minimum) {
+                const labelText = jenis === 'KUR' ? 'KUR' : 'KTA';
+                setFieldError(jumlahPinjamanInput, `Jumlah pinjaman minimal Rp ${limits.minimum.toLocaleString('id-ID')} untuk ${labelText}.`);
+                jumlahPinjamanInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return false;
+            }
+
+            if (amount > limits.maximum) {
+                const labelText = jenis === 'KUR' ? 'KUR' : 'KTA';
+                setFieldError(jumlahPinjamanInput, `Jumlah pinjaman maksimal Rp ${limits.maximum.toLocaleString('id-ID')} untuk ${labelText}.`);
+                jumlahPinjamanInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return false;
+            }
+
+            return true;
+        }
+
         function setChoiceActive(jenis) {
             choiceCards.forEach((card) => {
                 card.classList.toggle('active', card.getAttribute('data-jenis') === jenis);
@@ -605,10 +1412,124 @@ if (!empty($_GET['fields'])) {
             }
 
             jenisSelect.value = jenis;
+            clearSelectionAlert();
             setChoiceActive(jenis);
             updateJenisInfo();
             formSection.classList.add('is-visible');
-            formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            setWizardStep(2);
+        }
+
+        function setWizardStep(step) {
+            currentWizardStep = step;
+            stepItems.forEach((item) => {
+                const itemStep = Number(item.getAttribute('data-step'));
+                item.classList.toggle('active', itemStep === step);
+                item.classList.toggle('done', itemStep < step);
+            });
+
+            loanSelection.style.display = step === 1 ? 'block' : 'none';
+            formSection.classList.toggle('is-visible', step > 1);
+            wizardPanes.forEach((pane) => {
+                const paneName = pane.getAttribute('data-pane');
+                pane.classList.toggle('active',
+                    (step === 2 && paneName === 'data') ||
+                    (step === 3 && paneName === 'docs') ||
+                    (step === 4 && paneName === 'review')
+                );
+            });
+
+            prevWizard.classList.toggle('d-none', step <= 2);
+            backToDashboard.classList.toggle('d-none', step > 2);
+            nextWizard.classList.toggle('d-none', step === 4);
+            submitWizard.classList.toggle('d-none', step !== 4);
+
+            if (step === 4) {
+                buildReview();
+            }
+
+            const target = step === 1 ? loanSelection : formSection;
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function formatCurrency(value) {
+            const number = Number(value || 0);
+            return number > 0 ? 'Rp ' + number.toLocaleString('id-ID') : '-';
+        }
+
+        function fieldValue(selector) {
+            const field = pengajuanForm.querySelector(selector);
+            return field && field.value ? field.value : '-';
+        }
+
+        function fileLabel(selector) {
+            const field = pengajuanForm.querySelector(selector);
+            return field && field.files && field.files.length ? field.files[0].name : '-';
+        }
+
+        function addReviewItem(items, label, value) {
+            items.push([label, value || '-']);
+        }
+
+        function buildReview() {
+            const jenis = jenisSelect.value;
+            const items = [];
+            addReviewItem(items, 'Jenis Kredit', jenis === 'KTA' ? 'KTA - Kredit Tanpa Agunan' : 'KUR - Kredit Usaha Rakyat');
+            addReviewItem(items, 'Jumlah Pinjaman', formatCurrency(pengajuanForm.querySelector('input[name="jumlah_pinjaman"]').value));
+
+            if (jenis === 'KTA') {
+                addReviewItem(items, 'Tujuan Pinjaman', fieldValue('input[name="tujuan_pinjaman_kta"]'));
+                addReviewItem(items, 'Status Pekerjaan', fieldValue('select[name="status_pekerjaan_kta"]'));
+                addReviewItem(items, 'Tempat Kerja', fieldValue('input[name="nama_tempat_kerja_kta"]'));
+                addReviewItem(items, 'Penghasilan Bulanan', formatCurrency(fieldValue('input[name="penghasilan_bulanan_kta"]')));
+                addReviewItem(items, 'Beban Cicilan', formatCurrency(fieldValue('input[name="beban_cicilan_bulanan_kta"]')));
+                addReviewItem(items, 'KTP', fileLabel('#ktaDocs input[name="ktp"]'));
+                addReviewItem(items, 'Bukti Penghasilan', fileLabel('input[name="slip_gaji"]'));
+                addReviewItem(items, 'Surat Kerja', fileLabel('input[name="surat_kerja"]'));
+            } else {
+                addReviewItem(items, 'Nama Usaha', fieldValue('input[name="nama_usaha_kur"]'));
+                addReviewItem(items, 'Bidang Usaha', fieldValue('input[name="bidang_usaha_kur"]'));
+                addReviewItem(items, 'Alamat Usaha', fieldValue('input[name="alamat_usaha_kur"]'));
+                addReviewItem(items, 'Lama Usaha', fieldValue('input[name="lama_usaha_bulan_kur"]') + ' bulan');
+                addReviewItem(items, 'Omzet Bulanan', formatCurrency(fieldValue('input[name="omzet_bulanan_kur"]')));
+                addReviewItem(items, 'Laba Bersih', formatCurrency(fieldValue('input[name="laba_bersih_bulanan_kur"]')));
+                addReviewItem(items, 'Legalitas', fieldValue('select[name="legalitas_usaha_kur"]'));
+                addReviewItem(items, 'KTP', fileLabel('#kurDocs input[name="ktp"]'));
+                addReviewItem(items, 'Foto Usaha', fileLabel('input[name="foto_usaha"]'));
+                addReviewItem(items, 'Izin Usaha', fileLabel('input[name="izin_usaha"]'));
+            }
+
+            reviewGrid.innerHTML = items.map(([label, value]) => `
+                <div class="review-item">
+                    <div class="review-label">${label}</div>
+                    <div class="review-value">${String(value).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+                </div>
+            `).join('');
+        }
+
+        function goNextWizard() {
+            if (currentWizardStep === 1) {
+                if (!jenisSelect.value) {
+                    showSelectionAlert();
+                    loanSelection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    return;
+                }
+
+                clearSelectionAlert();
+                openFormWithJenis(jenisSelect.value);
+                return;
+            }
+
+            if (currentWizardStep === 2 && !validateRequiredFields(document.querySelector('[data-pane="data"]'))) {
+                return;
+            }
+            if (currentWizardStep === 3 && !validateRequiredFields(document.querySelector('[data-pane="docs"]'))) {
+                return;
+            }
+            setWizardStep(Math.min(4, currentWizardStep + 1));
+        }
+
+        function goPreviousWizard() {
+            setWizardStep(Math.max(2, currentWizardStep - 1));
         }
 
         function updateStatusPekerjaanField() {
@@ -654,6 +1575,7 @@ if (!empty($_GET['fields'])) {
 
         function updateJenisInfo() {
             const jenis = jenisSelect.value;
+            updateJumlahPinjamanConstraint();
             if (!jenis) {
                 jenisInfo.textContent = 'Pilih KTA atau KUR di atas untuk mulai mengisi pengajuan.';
                 ktaFields.style.display = 'none';
@@ -744,12 +1666,16 @@ if (!empty($_GET['fields'])) {
         }
 
         statusPekerjaanSelect.addEventListener('change', updateStatusPekerjaanField);
+        jumlahPinjamanInput.addEventListener('input', updateJumlahPinjamanStatus);
+        jumlahPinjamanInput.addEventListener('change', updateJumlahPinjamanStatus);
         updateJenisInfo();
 
         if (jenisSelect.value) {
             setChoiceActive(jenisSelect.value);
             formSection.classList.add('is-visible');
-            formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            setWizardStep(2);
+        } else {
+            setWizardStep(1);
         }
 
         choiceCards.forEach((card) => {
@@ -758,10 +1684,27 @@ if (!empty($_GET['fields'])) {
             });
         });
 
+        nextWizard.addEventListener('click', goNextWizard);
+        prevWizard.addEventListener('click', goPreviousWizard);
+
         pengajuanForm.addEventListener('submit', function(event) {
-            if (!validateRequiredFields()) {
+            setWizardStep(2);
+            if (!validateRequiredFields(document.querySelector('[data-pane="data"]'))) {
                 event.preventDefault();
+                return;
             }
+            if (!validateLoanAmount()) {
+                event.preventDefault();
+                return;
+            }
+
+            setWizardStep(3);
+            if (!validateRequiredFields(document.querySelector('[data-pane="docs"]'))) {
+                event.preventDefault();
+                return;
+            }
+
+            setWizardStep(4);
         });
 
         pengajuanForm.querySelectorAll('input, select, textarea').forEach((field) => {
@@ -774,6 +1717,7 @@ if (!empty($_GET['fields'])) {
             if (currentJenis) {
                 updateJenisInfo();
                 setChoiceActive(currentJenis);
+                setWizardStep(2);
             }
 
             const firstServerInvalid = serverErrorFields

@@ -338,10 +338,30 @@ $error = $_GET['error'] ?? null;
                                     <i class="fas fa-circle-exclamation mt-1 text-danger"></i>
                                     <div>Nama pengguna sudah digunakan.</div>
                                 </div>
+                            <?php elseif ($error == 7): ?>
+                                <div class="alert status-alert d-flex align-items-start gap-2 mb-3">
+                                    <i class="fas fa-circle-exclamation mt-1 text-danger"></i>
+                                    <div>Nomor anggota sudah digunakan oleh anggota lain.</div>
+                                </div>
                             <?php elseif ($error == 3): ?>
                                 <div class="alert status-alert d-flex align-items-start gap-2 mb-3">
                                     <i class="fas fa-circle-exclamation mt-1 text-danger"></i>
                                     <div>Pendaftaran gagal. Coba lagi.</div>
+                                </div>
+                            <?php elseif ($error == 4): ?>
+                                <div class="alert status-alert d-flex align-items-start gap-2 mb-3">
+                                    <i class="fas fa-circle-exclamation mt-1 text-danger"></i>
+                                    <div>Email wajib diisi karena dipakai untuk verifikasi akun.</div>
+                                </div>
+                            <?php elseif ($error == 5): ?>
+                                <div class="alert status-alert d-flex align-items-start gap-2 mb-3">
+                                    <i class="fas fa-circle-exclamation mt-1 text-danger"></i>
+                                    <div>Email sudah digunakan oleh anggota lain.</div>
+                                </div>
+                            <?php elseif ($error == 6): ?>
+                                <div class="alert status-alert d-flex align-items-start gap-2 mb-3">
+                                    <i class="fas fa-circle-exclamation mt-1 text-danger"></i>
+                                    <div>Gagal mengirim email verifikasi. Isi MAIL_USERNAME dan MAIL_PASSWORD dengan Gmail + App Password yang valid.</div>
                                 </div>
                             <?php endif; ?>
 
@@ -354,6 +374,10 @@ $error = $_GET['error'] ?? null;
                                     <div class="col-md-6">
                                         <label class="form-label" for="password">Kata Sandi</label>
                                         <input type="password" id="password" name="password" class="form-control form-control-lg" placeholder="Masukkan kata sandi" required>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label" for="nomor_anggota">Nomor Anggota</label>
+                                        <input type="text" id="nomor_anggota" name="nomor_anggota" class="form-control form-control-lg" placeholder="Masukkan nomor anggota" required>
                                     </div>
                                     <div class="col-12">
                                         <label class="form-label" for="nama">Nama Lengkap</label>
@@ -369,7 +393,8 @@ $error = $_GET['error'] ?? null;
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label" for="email">Email</label>
-                                        <input type="email" id="email" name="email" class="form-control form-control-lg" placeholder="Masukkan email">
+                                        <input type="email" id="email" name="email" class="form-control form-control-lg" placeholder="Masukkan email" required>
+                                        <div class="form-text">Kode verifikasi akan dikirim ke email ini.</div>
                                     </div>
                                     <div class="col-12">
                                         <label class="form-label" for="tanggal_lahir">Tanggal Lahir</label>

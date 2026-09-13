@@ -5,6 +5,7 @@ require_once '../function/auth.php';
 checkLogin();
 checkRole('admin');
 require_once '../config/database.php';
+require_once 'ui.php';
 
 $conn = getDBConnection();
 
@@ -427,26 +428,11 @@ $resetUrl = 'reports.php';
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+    <?php echo adminPageStyles(); ?>
     <style>
-        body {
-            background: linear-gradient(180deg, #eff6ff 0%, #f8fafc 100%);
-        }
-        .hero {
-            background: linear-gradient(135deg, #1d4ed8 0%, #0f766e 100%);
-            color: #fff;
-            border: 0;
-            box-shadow: 0 12px 30px rgba(15, 23, 42, .08);
-            border-radius: 1rem;
-        }
-        .section-card {
-            border: 0;
-            box-shadow: 0 10px 25px rgba(15, 23, 42, .06);
-            border-radius: 1rem;
-        }
-        .metric-card {
-            border: 0;
-            box-shadow: 0 12px 30px rgba(15, 23, 42, .08);
-            border-radius: 1rem;
+        .report-filter-card .form-label {
+            color: #526386;
+            font-weight: 750;
         }
         @media print {
             .no-print {
@@ -462,40 +448,22 @@ $resetUrl = 'reports.php';
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary no-print">
-        <div class="container">
-            <a class="navbar-brand" href="dashboard.php">Dasbor Admin</a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="dashboard.php">
-                    <i class="fas fa-house me-1"></i>Dashboard
-                </a>
-                <a class="nav-link" href="../proses/logout.php">Logout</a>
-            </div>
-        </div>
-    </nav>
+    <?php echo renderAdminHeader('reports', 'Laporan Peminjaman', 'Daftar pengajuan yang diterima dan ditolak berdasarkan hasil SAW, lengkap dengan total dan rata-rata pinjaman pada periode tertentu.', [
+        ['label' => 'Export CSV', 'href' => $exportUrl, 'class' => 'btn btn-primary', 'icon' => 'fa-file-csv'],
+    ]); ?>
 
-    <div class="container mt-4">
-        <div class="card hero mb-4 no-print">
-            <div class="card-body p-4">
-                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3">
-                    <div>
-                        <h2 class="mb-1">Laporan Peminjaman</h2>
-                        <p class="mb-0 text-white-50">Daftar pengajuan yang diterima dan ditolak berdasarkan hasil SAW, lengkap dengan total dan rata-rata pinjaman pada periode tertentu.</p>
-                    </div>
-                    <div class="d-flex gap-2 flex-wrap">
-                        <a href="<?php echo htmlspecialchars($exportUrl); ?>" class="btn btn-light">
-                            <i class="fas fa-file-csv"></i> Export CSV
-                        </a>
-                        <button type="button" class="btn btn-outline-light" onclick="window.print()">
-                            <i class="fas fa-print"></i> Cetak
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card section-card mb-4 no-print">
+    <div class="container admin-shell">
+        <div class="card section-card report-filter-card mb-4 no-print">
             <div class="card-body">
+                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
+                    <div>
+                        <h2 class="admin-section-title h4 mb-1">Filter dan Arsip</h2>
+                        <p class="text-muted mb-0">Pilih periode laporan, simpan arsip, atau cetak ringkasan saat ini.</p>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary" onclick="window.print()">
+                        <i class="fas fa-print me-1"></i>Cetak
+                    </button>
+                </div>
                 <div class="row g-3 align-items-end">
                     <div class="col-lg-7">
                         <form method="GET" class="row g-2">

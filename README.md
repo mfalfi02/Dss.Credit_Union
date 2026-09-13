@@ -2,29 +2,36 @@
 
 Sistem Pendukung Keputusan (SPK) untuk penerimaan kredit KTA dan KUR menggunakan metode Simple Additive Weighting (SAW).
 
-## Petunjuk Instalasi
+# Petunjuk Instalasi
 
-1. **MySQL Server**
+1. MySQL Server
    - Pastikan MySQL berjalan di port default (3306)
    - Untuk XAMPP: Start Apache dan MySQL dari XAMPP Control Panel
 
-2. **Pengaturan Basis Data**
+2. Pengaturan Basis Data
    - Schema database  
    - Buka terminal dan navigasi ke folder project
    - Jalankan rebuild database:
      - `mysql -u root -p < database/reset.sql`
      - `mysql -u root -p < database/seed.sql`
+   - Jika memakai database lama, jalankan juga `mysql -u root -p < database/alter.sql`
    - Masukkan password MySQL root Anda
 
-3. **Konfigurasi Basis Data**
+3. Konfigurasi Basis Data
    - Seusai kan confi database dgn nama yang anda buat di database
    - Edit `config/database.php` jika perlu mengubah kredensial DB
 
-4. **Akses Sistem**
+4. Konfigurasi Email Verifikasi
+   - Copy `.env.example` menjadi `.env`
+   - Isi `MAIL_USERNAME` dengan Gmail pengirim, misalnya `mfalfi02@gmail.com`
+   - Isi `MAIL_PASSWORD` dengan **App Password** dari akun Google
+   - Jika perlu, sesuaikan `MAIL_FROM_EMAIL` dan `MAIL_FROM_NAME`
+
+5. Akses Sistem
    - Buka `index.php` di browser
    - Masuk Untuk login sseusai authentikasi login yang telah di buat di database
 
-## Struktur Folder
+# Struktur Folder
 
 - `/config` - Konfigurasi database
 - `/assets` - CSS, JS, gambar
@@ -38,17 +45,18 @@ Sistem Pendukung Keputusan (SPK) untuk penerimaan kredit KTA dan KUR menggunakan
 - `/auth` - Script autentikasi
 - `/database` - Schema dan migrasi DB
 
-## Peran
+# Peran
 
 - **Admin**: Kelola pengguna, anggota, aplikasi, kriteria, laporan
 - **Petugas**: Verifikasi dokumen dan Final validasi, melihat Hasil Perhitungan SAW
-- **Anggota**: Daftar, ajukan kredit, unggah dokumen, lihat status pengajuan
+- **Anggota**: Daftar, ajukan kredit, unggah dokumen, lihat status pengajuan, dan notifikasi pencairan
 
-## Data Default
+# Data Default
 
 - Nama Database yang di saran kan agar sesuai dgn env: `spk_kredit_cu`
+- Email pengirim verifikasi bisa diatur lewat `.env`
 
-## Metode SAW
+# Metode SAW
 
 Kriteria default:
 
@@ -66,7 +74,7 @@ Proses:
 3. Penjumlahan skor
 4. Peringkat berdasarkan skor tertinggi
 
-## Teknologi
+# Teknologi
 
 - PHP Native
 - MySQL
@@ -76,7 +84,7 @@ Proses:
 - SweetAlert
 - Font Awesome
 
-## Rencana Pengembangan
+# Rencana Pengembangan
 
 1. ✅ Siapkan lingkungan dan skema basis data
 2. ✅ Implementasi auth dan roles
@@ -87,7 +95,7 @@ Proses:
 7. 🔄 Buat dasbor dan laporan
 8. 🔄 Pengujian, audit keamanan, dan penerapan
 
-## Fitur Keamanan
+# Fitur Keamanan
 
 - Hash kata sandi dengan bcrypt
 - Prepared statement untuk mencegah SQL injection
@@ -103,5 +111,5 @@ Proses:
 - Pull request untuk penggabungan ke `main`
 - Ikuti konvensi penamaan dan struktur folder
 
-## Dokumentasi
-- Dokumentasi dengan menggunakan command pada setiap line atau fitur agar memudahkan dalam reading code dan maintanace 
+# Dokumentasi
+-  Dokumentasi dengan menggunakan command pada setiap line atau fitur agar memudahkan dalam reading code dan maintanace 

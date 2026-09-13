@@ -6,6 +6,7 @@ checkLogin();
 checkRole('petugas');
 require_once '../config/database.php';
 require_once '../function/saw.php';
+require_once '../function/notification.php';
 
 $conn = getDBConnection();
 $saw = new SAWCalculator($conn);
@@ -13,7 +14,7 @@ $saw = new SAWCalculator($conn);
 $activeTypes = $conn->query(
     "SELECT DISTINCT jenis_kredit
      FROM pengajuan
-     WHERE status IN ('verified', 'accepted')"
+     WHERE status IN ('verified', 'accepted')",
 );
 if ($activeTypes) {
     // Pastikan ranking SAW tetap sinkron untuk pengajuan yang valid.
@@ -45,8 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         try {
             // Update status pengajuan dan simpan riwayat aksi petugas.
-            $stmt = $conn->prepare("UPDATE pengajuan SET status = ? WHERE id = ?");
-            $stmt->bind_param("si", $status, $pengajuan_id);
+            $stmt = $conn->prepare('UPDATE pengajuan SET status = ? WHERE id = ?');
+            $stmt->bind_param('si', $status, $pengajuan_id);
             $stmt->execute();
 
             $aksi = match ($status) {
@@ -62,9 +63,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $user_id = (int) $_SESSION['user_id'];
-            $stmt = $conn->prepare("INSERT INTO riwayat_pengajuan (pengajuan_id, aksi, dilakukan_oleh) VALUES (?, ?, ?)");
-            $stmt->bind_param("isi", $pengajuan_id, $aksi, $user_id);
+            $stmt = $conn->prepare('INSERT INTO riwayat_pengajuan (pengajuan_id, aksi, dilakukan_oleh) VALUES (?, ?, ?)');
+            $stmt->bind_param('isi', $pengajuan_id, $aksi, $user_id);
             $stmt->execute();
+
+            syncAcceptanceNotification($conn, $pengajuan_id);
 
             $conn->commit();
 
@@ -104,7 +107,7 @@ $result = $conn->query(
      LEFT JOIN hasil_saw h ON h.pengajuan_id = p.id
      LEFT JOIN dokumen d ON d.pengajuan_id = p.id
      GROUP BY p.id, h.skor_terbobot, h.persentase_saw, h.kelayakan
-     ORDER BY p.created_at DESC"
+     ORDER BY p.created_at DESC",
 );
 if ($result) {
     $applications = $result->fetch_all(MYSQLI_ASSOC);
@@ -118,7 +121,7 @@ if (!empty($appIds)) {
         "SELECT id, pengajuan_id, nama_file, path_file, jenis, uploaded_at
          FROM dokumen
          WHERE pengajuan_id IN ($idList)
-         ORDER BY uploaded_at ASC, id ASC"
+         ORDER BY uploaded_at ASC, id ASC",
     );
     if ($resultDocs) {
         $documentRows = $resultDocs->fetch_all(MYSQLI_ASSOC);
@@ -165,9 +168,7 @@ function sawBadgeClass($kelayakan)
 function eligibilityLabel($value)
 {
     // Label deskriptif untuk hasil kelayakan.
-    return $value === 'layak'
-        ? 'Memenuhi Batas Minimum'
-        : 'Belum Memenuhi Batas Minimum';
+    return $value === 'layak' ? 'Memenuhi Batas Minimum' : 'Belum Memenuhi Batas Minimum';
 }
 
 function isStudentApplicant($detailJson)
@@ -243,6 +244,7 @@ function statusLabel($status)
 ?>
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -254,9 +256,11 @@ function statusLabel($status)
         body {
             background: linear-gradient(180deg, #f7fbff 0%, #eef8f1 100%);
         }
+
         .page-shell {
             max-width: 1400px;
         }
+
         .hero-card {
             background: linear-gradient(135deg, #0f766e 0%, #2563eb 100%);
             color: #fff;
@@ -280,6 +284,7 @@ function statusLabel($status)
         }
     </style>
 </head>
+
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-success">
         <div class="container page-shell">
@@ -297,7 +302,8 @@ function statusLabel($status)
                     <div>
                         <h2 class="mb-2">Verifikasi Dokumen</h2>
                         <p class="mb-0 text-white-50">
-                            Periksa kelengkapan dokumen, lihat ringkasan pengajuan KTA/KUR, lalu tandai dokumen sebagai diverifikasi atau ditolak.
+                            Periksa kelengkapan dokumen, lihat ringkasan pengajuan KTA/KUR, lalu tandai dokumen sebagai
+                            diverifikasi atau ditolak.
                         </p>
                     </div>
                     <div class="d-flex flex-wrap gap-2">
@@ -314,6 +320,16 @@ function statusLabel($status)
 
         <div class="card section-card">
             <div class="card-body">
+                <div class="mb-3">
+                    <label for="filterJenisKredit" class="form-label fw-semibold">
+                        Filter Jenis Pinjaman
+                    </label>
+                    <select id="filterJenisKredit" class="form-select" style="max-width: 250px;">
+                        <option value="">Semua Jenis Pinjaman</option>
+                        <option value="KTA">KTA</option>
+                        <option value="KUR">KUR</option>
+                    </select>
+                </div>
                 <table id="documentsTable" class="table table-striped align-middle">
                     <thead>
                         <tr>
@@ -343,29 +359,29 @@ function statusLabel($status)
                                 <div class="mb-1">
                                     <span class="doc-pill">KTP: <?php echo (int) $app['ktp_count']; ?></span>
                                     <?php if ($app['jenis_kredit'] === 'KTA' && isStudentApplicant($app['detail_pinjaman'])): ?>
-                                        <span class="doc-pill">Kartu Pelajar: <?php echo (int) $app['kartu_pelajar_count']; ?></span>
-                                        <span class="doc-pill">Kartu Keluarga: <?php echo (int) $app['kartu_keluarga_count']; ?></span>
+                                    <span class="doc-pill">Kartu Pelajar: <?php echo (int) $app['kartu_pelajar_count']; ?></span>
+                                    <span class="doc-pill">Kartu Keluarga: <?php echo (int) $app['kartu_keluarga_count']; ?></span>
                                     <?php elseif ($app['jenis_kredit'] === 'KTA'): ?>
-                                        <span class="doc-pill">Slip Gaji: <?php echo (int) $app['slip_gaji_count']; ?></span>
-                                        <span class="doc-pill">Surat Kerja: <?php echo (int) $app['surat_kerja_count']; ?></span>
+                                    <span class="doc-pill">Slip Gaji: <?php echo (int) $app['slip_gaji_count']; ?></span>
+                                    <span class="doc-pill">Surat Kerja: <?php echo (int) $app['surat_kerja_count']; ?></span>
                                     <?php else: ?>
-                                        <span class="doc-pill">Foto Usaha: <?php echo (int) $app['foto_usaha_count']; ?></span>
-                                        <span class="doc-pill">Izin Usaha: <?php echo (int) $app['izin_usaha_count']; ?></span>
-                                        <span class="doc-pill">Laporan Usaha: <?php echo (int) $app['laporan_usaha_count']; ?></span>
+                                    <span class="doc-pill">Foto Usaha: <?php echo (int) $app['foto_usaha_count']; ?></span>
+                                    <span class="doc-pill">Izin Usaha: <?php echo (int) $app['izin_usaha_count']; ?></span>
+                                    <span class="doc-pill">Laporan Usaha: <?php echo (int) $app['laporan_usaha_count']; ?></span>
                                     <?php endif; ?>
                                 </div>
                                 <small class="text-muted">Total berkas: <?php echo (int) $app['dokumen_count']; ?></small>
                             </td>
                             <td>
                                 <?php if (!empty($app['kelayakan'])): ?>
-                                    <span class="badge bg-<?php echo sawBadgeClass($app['kelayakan']); ?> text-wrap" style="white-space: normal;">
+                                <span class="badge bg-<?php echo sawBadgeClass($app['kelayakan']); ?> text-wrap" style="white-space: normal;">
                                     <?php echo eligibilityLabel($app['kelayakan']); ?>
-                                    </span>
-                                    <div class="small text-muted mt-1">
-                                        <?php echo number_format((float) $app['persentase_saw'], 2); ?>%
-                                    </div>
+                                </span>
+                                <div class="small text-muted mt-1">
+                                    <?php echo number_format((float) $app['persentase_saw'], 2); ?>%
+                                </div>
                                 <?php else: ?>
-                                    <span class="text-muted">Belum ada rekomendasi</span>
+                                <span class="text-muted">Belum ada rekomendasi</span>
                                 <?php endif; ?>
                             </td>
                             <td>
@@ -375,45 +391,48 @@ function statusLabel($status)
                             </td>
                             <td><?php echo date('d/m/Y', strtotime($app['created_at'])); ?></td>
                             <td>
-                                <button type="button" class="btn btn-sm btn-outline-primary mb-1" onclick="openDocModal(<?php echo (int) $app['id']; ?>, <?php echo htmlspecialchars(json_encode($app), ENT_QUOTES, 'UTF-8'); ?>)">
+                                <button type="button" class="btn btn-sm btn-outline-primary mb-1"
+                                    onclick="openDocModal(<?php echo (int) $app['id']; ?>, <?php echo htmlspecialchars(json_encode($app), ENT_QUOTES, 'UTF-8'); ?>)">
                                     Detail
                                 </button>
                                 <?php if ($app['status'] === 'pending'): ?>
-                                    <form method="POST" class="d-inline">
-                                        <input type="hidden" name="pengajuan_id" value="<?php echo (int) $app['id']; ?>">
-                                        <input type="hidden" name="status" value="verified">
-                                        <input type="hidden" name="catatan" value="Dokumen lengkap dan siap validasi akhir">
-                                        <button type="submit" class="btn btn-sm btn-success mb-1">
-                                            Verifikasi Dokumen
-                                        </button>
-                                    </form>
-                                    <form method="POST" class="d-inline">
-                                        <input type="hidden" name="pengajuan_id" value="<?php echo (int) $app['id']; ?>">
-                                        <input type="hidden" name="status" value="document_rejected">
-                                        <input type="hidden" name="catatan" value="Dokumen tidak lengkap atau tidak sesuai">
-                                        <button type="submit" class="btn btn-sm btn-danger mb-1">
-                                            Tolak Dokumen
-                                        </button>
-                                    </form>
+                                <form method="POST" class="d-inline">
+                                    <input type="hidden" name="pengajuan_id" value="<?php echo (int) $app['id']; ?>">
+                                    <input type="hidden" name="status" value="verified">
+                                    <input type="hidden" name="catatan"
+                                        value="Dokumen lengkap dan siap validasi akhir">
+                                    <button type="submit" class="btn btn-sm btn-success mb-1">
+                                        Verifikasi Dokumen
+                                    </button>
+                                </form>
+                                <form method="POST" class="d-inline">
+                                    <input type="hidden" name="pengajuan_id" value="<?php echo (int) $app['id']; ?>">
+                                    <input type="hidden" name="status" value="document_rejected">
+                                    <input type="hidden" name="catatan"
+                                        value="Dokumen tidak lengkap atau tidak sesuai">
+                                    <button type="submit" class="btn btn-sm btn-danger mb-1">
+                                        Tolak Dokumen
+                                    </button>
+                                </form>
                                 <?php elseif ($app['status'] === 'verified'): ?>
-                                    <form method="POST" action="../proses/recommend.php" class="d-inline">
-                                        <input type="hidden" name="pengajuan_id" value="<?php echo (int) $app['id']; ?>">
-                                        <input type="hidden" name="decision" value="accepted">
-                                        <input type="hidden" name="notes" value="Validasi akhir disetujui CU">
-                                        <button type="submit" class="btn btn-sm btn-success mb-1">
-                                            Validasi Akhir
-                                        </button>
-                                    </form>
-                                    <form method="POST" action="../proses/recommend.php" class="d-inline">
-                                        <input type="hidden" name="pengajuan_id" value="<?php echo (int) $app['id']; ?>">
-                                        <input type="hidden" name="decision" value="rejected">
-                                        <input type="hidden" name="notes" value="Validasi akhir ditolak CU">
-                                        <button type="submit" class="btn btn-sm btn-danger mb-1">
-                                            Tolak CU
-                                        </button>
-                                    </form>
+                                <form method="POST" action="../proses/recommend.php" class="d-inline">
+                                    <input type="hidden" name="pengajuan_id" value="<?php echo (int) $app['id']; ?>">
+                                    <input type="hidden" name="decision" value="accepted">
+                                    <input type="hidden" name="notes" value="Validasi akhir disetujui CU">
+                                    <button type="submit" class="btn btn-sm btn-success mb-1">
+                                        Validasi Akhir
+                                    </button>
+                                </form>
+                                <form method="POST" action="../proses/recommend.php" class="d-inline">
+                                    <input type="hidden" name="pengajuan_id" value="<?php echo (int) $app['id']; ?>">
+                                    <input type="hidden" name="decision" value="rejected">
+                                    <input type="hidden" name="notes" value="Validasi akhir ditolak CU">
+                                    <button type="submit" class="btn btn-sm btn-danger mb-1">
+                                        Tolak CU
+                                    </button>
+                                </form>
                                 <?php else: ?>
-                                    <span class="badge bg-light text-dark border">Riwayat final</span>
+                                <span class="badge bg-light text-dark border">Riwayat final</span>
                                 <?php endif; ?>
                             </td>
                         </tr>
@@ -461,7 +480,9 @@ function statusLabel($status)
         $(document).ready(function() {
             $('#documentsTable').DataTable({
                 pageLength: 10,
-                order: [[6, 'desc']]
+                order: [
+                    [6, 'desc']
+                ]
             });
         });
 
@@ -493,9 +514,9 @@ function statusLabel($status)
         function openPreview(title, fileUrl, isImage) {
             $('#previewModalTitle').text(title);
             $('#previewModalBody').html(
-                isImage
-                    ? `<img src="${fileUrl}" alt="${escapeHtml(title)}" class="img-fluid rounded border w-100">`
-                    : `<iframe src="${fileUrl}" title="${escapeHtml(title)}" style="width:100%;height:80vh;border:0;" class="rounded border"></iframe>`
+                isImage ?
+                `<img src="${fileUrl}" alt="${escapeHtml(title)}" class="img-fluid rounded border w-100">` :
+                `<iframe src="${fileUrl}" title="${escapeHtml(title)}" style="width:100%;height:80vh;border:0;" class="rounded border"></iframe>`
             );
             const modal = new bootstrap.Modal(document.getElementById('previewModal'));
             modal.show();
@@ -504,7 +525,8 @@ function statusLabel($status)
         function openDocModal(id, app) {
             let detail = {};
             try {
-                detail = typeof app.detail_pinjaman === 'string' ? JSON.parse(app.detail_pinjaman || '{}') : (app.detail_pinjaman || {});
+                detail = typeof app.detail_pinjaman === 'string' ? JSON.parse(app.detail_pinjaman || '{}') : (app
+                    .detail_pinjaman || {});
             } catch (e) {
                 detail = {};
             }
@@ -538,15 +560,22 @@ function statusLabel($status)
                 } else {
                     detailRows.push(['Pekerjaan', detail.status_pekerjaan || '-']);
                     detailRows.push(['Tempat Kerja', detail.nama_tempat_kerja || '-']);
-                    detailRows.push(['Lama Bekerja', detail.lama_bekerja_bulan ? detail.lama_bekerja_bulan + ' bulan' : '-']);
+                    detailRows.push(['Lama Bekerja', detail.lama_bekerja_bulan ? detail.lama_bekerja_bulan + ' bulan' :
+                        '-'
+                    ]);
                 }
-                detailRows.push(['Penghasilan', detail.penghasilan_bulanan ? 'Rp ' + Number(detail.penghasilan_bulanan).toLocaleString('id-ID') : '-']);
+                detailRows.push(['Penghasilan', detail.penghasilan_bulanan ? 'Rp ' + Number(detail.penghasilan_bulanan)
+                    .toLocaleString('id-ID') : '-'
+                ]);
             } else {
                 detailRows.push(['Nama Usaha', detail.nama_usaha || '-']);
                 detailRows.push(['Bidang Usaha', detail.bidang_usaha || '-']);
                 detailRows.push(['Alamat Usaha', detail.alamat_usaha || '-']);
-                detailRows.push(['Omzet', detail.omzet_bulanan ? 'Rp ' + Number(detail.omzet_bulanan).toLocaleString('id-ID') : '-']);
-                detailRows.push(['Laba', detail.laba_bersih_bulanan ? 'Rp ' + Number(detail.laba_bersih_bulanan).toLocaleString('id-ID') : '-']);
+                detailRows.push(['Omzet', detail.omzet_bulanan ? 'Rp ' + Number(detail.omzet_bulanan).toLocaleString(
+                    'id-ID') : '-']);
+                detailRows.push(['Laba', detail.laba_bersih_bulanan ? 'Rp ' + Number(detail.laba_bersih_bulanan)
+                    .toLocaleString('id-ID') : '-'
+                ]);
                 detailRows.push(['Legalitas', detail.legalitas_usaha || '-']);
             }
 
@@ -566,12 +595,12 @@ function statusLabel($status)
                 const fileUrl = `../proses/view_document.php?id=${encodeURIComponent(doc.id)}`;
                 const downloadUrl = `${fileUrl}&download=1`;
                 const required = isRequiredDoc(doc.jenis, isStudent, app.jenis_kredit);
-                const preview = isImageFile(doc.path_file)
-                    ? `<button type="button" class="btn p-0 border-0 bg-transparent d-block mb-2 w-100"
+                const preview = isImageFile(doc.path_file) ?
+                    `<button type="button" class="btn p-0 border-0 bg-transparent d-block mb-2 w-100"
                             onclick="openPreview('${escapeHtml(doc.nama_file)}', '${fileUrl}', true)">
                             <img src="${fileUrl}" alt="${escapeHtml(doc.nama_file)}" class="img-fluid rounded border w-100" style="max-height: 260px; object-fit: cover;">
-                       </button>`
-                    : `<a href="${fileUrl}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary mb-2">Buka File</a>`;
+                       </button>` :
+                    `<a href="${fileUrl}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary mb-2">Buka File</a>`;
 
                 return `
                     <div class="col-md-6 doc-card" data-doc-type="${escapeHtml(doc.jenis)}">
@@ -638,6 +667,18 @@ function statusLabel($status)
             const modal = new bootstrap.Modal(document.getElementById('docModal'));
             modal.show();
         }
+        $(document).ready(function() {
+            $('#filterJenisKredit').on('change', function() {
+                const value = $(this).val();
+
+                $('#documentsTable')
+                    .DataTable()
+                    .column(2)
+                    .search(value)
+                    .draw();
+            });
+        });
     </script>
 </body>
+
 </html>

@@ -8,31 +8,35 @@ INSERT IGNORE INTO roles (id, name) VALUES
 (2, 'petugas'),
 (3, 'anggota');
 
-INSERT INTO users (id, username, password, role_id) VALUES
-(1, 'admin', '$2y$10$h09xwVapY1JRS2DgIXsog.tznX67Q88RFx79e1wSDEe5/mMwSU.yW', 1)
+INSERT INTO users (id, username, password, role_id, email_verified_at) VALUES
+(1, 'admin', '$2y$10$h09xwVapY1JRS2DgIXsog.tznX67Q88RFx79e1wSDEe5/mMwSU.yW', 1, CURRENT_TIMESTAMP)
 ON DUPLICATE KEY UPDATE
     username = VALUES(username),
     password = VALUES(password),
-    role_id = VALUES(role_id);
+    role_id = VALUES(role_id),
+    email_verified_at = VALUES(email_verified_at);
 
-INSERT INTO users (id, username, password, role_id) VALUES
-(2, 'petugas', '$2y$10$Mw9sY/pmnwqvuWhhC2gU8eqla.BJ94rWaBnni1rxjthZengffrWO6', 2)
+INSERT INTO users (id, username, password, role_id, email_verified_at) VALUES
+(2, 'petugas', '$2y$10$Mw9sY/pmnwqvuWhhC2gU8eqla.BJ94rWaBnni1rxjthZengffrWO6', 2, CURRENT_TIMESTAMP)
 ON DUPLICATE KEY UPDATE
     username = VALUES(username),
     password = VALUES(password),
-    role_id = VALUES(role_id);
+    role_id = VALUES(role_id),
+    email_verified_at = VALUES(email_verified_at);
 
-INSERT INTO users (id, username, password, role_id) VALUES
-(3, 'anggota', '$2y$10$Vfj9yVebTdUb6KAJClVZXuxZlDu48gcfOuE5exLQF1IBfDdqBojKa', 3)
+INSERT INTO users (id, username, password, role_id, email_verified_at) VALUES
+(3, 'anggota', '$2y$10$Vfj9yVebTdUb6KAJClVZXuxZlDu48gcfOuE5exLQF1IBfDdqBojKa', 3, CURRENT_TIMESTAMP)
 ON DUPLICATE KEY UPDATE
     username = VALUES(username),
     password = VALUES(password),
-    role_id = VALUES(role_id);
+    role_id = VALUES(role_id),
+    email_verified_at = VALUES(email_verified_at);
 
-INSERT INTO anggota (id, user_id, nama, alamat, no_hp, email, tanggal_lahir) VALUES
-(1, 3, 'Anggota Demo', 'Jl. Jeruju Contoh No. 1', '081234567890', 'anggota@example.com', '1995-05-10')
+INSERT INTO anggota (id, user_id, nomor_anggota, nama, alamat, no_hp, email, tanggal_lahir) VALUES
+(1, 3, 'ANG-0001', 'Anggota Demo', 'Jl. Jeruju Contoh No. 1', '081234567890', 'anggota@example.com', '1995-05-10')
 ON DUPLICATE KEY UPDATE
     user_id = VALUES(user_id),
+    nomor_anggota = VALUES(nomor_anggota),
     nama = VALUES(nama),
     alamat = VALUES(alamat),
     no_hp = VALUES(no_hp),
